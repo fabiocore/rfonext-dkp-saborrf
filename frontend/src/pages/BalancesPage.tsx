@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { fetchBalances, fetchGuildSettings } from '../api/client';
+import { DefaultAvatar } from '../components/DefaultAvatar';
 
 export function BalancesPage() {
   const { t } = useTranslation();
@@ -37,7 +38,20 @@ export function BalancesPage() {
           <tbody>
             {items.map((entry) => (
               <tr key={entry.id}>
-                <td>{entry.gameName}</td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                    {entry.avatarUrl ? (
+                      <img
+                        src={entry.avatarUrl}
+                        alt=""
+                        style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    ) : (
+                      <DefaultAvatar size={32} />
+                    )}
+                    {entry.gameName}
+                  </span>
+                </td>
                 <td>{entry.level ?? '-'}</td>
                 <td>
                   {entry.balance} {settingsQuery.data?.currencyAbbr}

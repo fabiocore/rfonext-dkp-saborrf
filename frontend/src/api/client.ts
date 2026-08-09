@@ -62,6 +62,7 @@ export interface BalanceEntry {
   gameName: string;
   level: number | null;
   membershipStatus: MembershipStatus;
+  avatarUrl: string | null;
   balance: number;
 }
 

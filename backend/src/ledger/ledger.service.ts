@@ -217,7 +217,7 @@ export class LedgerService {
     const [principals, total] = await Promise.all([
       this.prisma.character.findMany({
         where,
-        select: { id: true, gameName: true, level: true, membershipStatus: true },
+        select: { id: true, gameName: true, level: true, membershipStatus: true, avatarUrl: true },
         orderBy: { gameName: 'asc' },
         skip: (page - 1) * pageSize,
         take: pageSize,

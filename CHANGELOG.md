@@ -4,6 +4,14 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Avatar do personagem na página Saldos
+
+**Pedido**: usuário pediu pra usar o avatar customizado (já existente desde a feature de Perfil — presets DiceBear ou upload próprio) também na página pública Saldos (`/saldo`), que até então só mostrava texto puro (Personagem/Nível/Saldo).
+
+**Implementado**: avatar circular pequeno (32px) ao lado do nome, na própria coluna Personagem — reaproveitando exatamente o mesmo padrão já usado em `ProfilePage.tsx` (`avatarUrl` quando definido, fallback `DefaultAvatar` SVG quando não). `LedgerService.getBalances` passou a selecionar `avatarUrl` do personagem; `BalanceEntry` (client.ts) ganhou o campo; `BalancesPage.tsx` renderiza `<img>` ou `<DefaultAvatar size={32} />` dentro de um `<span>` flex antes do nome.
+
+**Testado ao vivo**: confirmei `avatarUrl: null` aparecendo na resposta de `/api/public/balances`; inspecionei o DOM renderizado confirmando o SVG de fallback (32×32) quando não há avatar; setei um avatar de teste (DiceBear) direto no banco pra um personagem, recarreguei, e confirmei o `<img>` renderizando com o src/estilo certos; revertido o avatar de teste ao final.
+
 ## 2026-08-09 — Recuperação de senha do GM: código de recuperação self-service + script de reset via servidor
 
 **Contexto**: usuário já satisfeito com a troca de senha self-service (`/admin/change-password`), perguntou o que dava pra fazer pra recuperar acesso caso esqueça a senha e nem consiga logar (cenário diferente — troca exige estar logado). Propus 3 opções (script server-side, código de recuperação, e-mail com serviço externo) e o usuário escolheu implementar as duas primeiras, descartando e-mail por exigir infraestrutura externa nova.
