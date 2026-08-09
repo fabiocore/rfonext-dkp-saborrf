@@ -138,3 +138,28 @@ Isso cria um ambiente **irmão**, com banco e segredos totalmente novos e indepe
 ### 8.4. Por que `docker-compose.dokploy.yml` e não `docker-compose.prod.yml`
 
 O Dokploy roda seu próprio Traefik ocupando as portas 80/443 do host pra rotear todos os domínios de todos os projetos. `docker-compose.prod.yml` (pensado pra Docker Compose puro, sem Dokploy) publica `80:80` direto no host — o que colide com o Traefik. `docker-compose.dokploy.yml` é idêntico, só sem essa publicação; o Traefik alcança o serviço `web` pela rede interna do Docker, usando a porta configurada no domínio (seção 8.2, passo 6).
+
+### 8.5. Redeploy de rotina + saber o que falta promover pra prod (`scripts/dokploy-redeploy.sh`)
+
+**Problema** (identificado em 2026-08-09): tanto o app `dev` quanto o futuro app `production` apontam pro mesmo branch `main`, e o deploy de cada ambiente é disparado manualmente (chamada de API), separado do `git push`. Ou seja, em qualquer momento os dois podem estar em commits diferentes, sem nenhum registro de qual commit está ao vivo em cada um.
+
+**Solução**: tags git móveis, uma por ambiente — `deployed/dev` e `deployed/prod` — sempre apontando pro commit que está realmente no ar naquele ambiente. Movidas automaticamente pelo script de redeploy, só depois de confirmar que o deploy terminou com sucesso (`composeStatus: done`) — se falhar, a tag não se move, então ela nunca mente sobre o que está no ar.
+
+Fluxo de rotina, depois de commitar/pushar uma mudança pro `main`:
+```bash
+export DOKPLOY_URL=https://SEU-PAINEL-DOKPLOY
+export DOKPLOY_API_KEY=xxxxxxxxxxxxxxxx
+
+./scripts/dokploy-redeploy.sh --compose-id <composeId-do-ambiente> --tag dev
+# depois de validar no dev e decidir promover:
+./scripts/dokploy-redeploy.sh --compose-id <composeId-do-ambiente-prod> --tag prod
+```
+
+Pra saber **o que já está validado no dev mas ainda não foi promovido pra produção** (a pergunta que motivou isso):
+```bash
+git fetch --tags
+git log deployed/prod..deployed/dev --oneline
+```
+Lista vazia = prod já está em dia com o que foi validado no dev. Lista não vazia = esses são os commits pendentes de promoção — dá pra ler as mensagens direto, ou cruzar com `CHANGELOG.md` pra saber o que cada um mudou.
+
+O `composeId` de cada ambiente aparece no log do `dokploy-deploy.sh` na hora da criação (seção 8.2, "Pronto: Compose: ..."), ou via `GET /api/project.all` filtrando pelo nome do app (`<guild>-web`).

@@ -4,6 +4,16 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Versionamento dev/prod: tags git móveis + script de redeploy de rotina
+
+**Pedido**: usuário percebeu que não existe hoje nenhuma forma de saber "o que já está validado no dev mas ainda não foi promovido pra produção" — problema real, já que tanto o app `dev` quanto o futuro `production` no Dokploy apontam pro mesmo branch `main`, e cada deploy é disparado manualmente por ambiente, sem vínculo com o `git push`.
+
+**Solução escolhida** (entre tag móvel vs. branch `production` dedicado — usuário preferiu a tag, mais leve): `deployed/dev` e `deployed/prod`, tags git que sempre apontam pro commit realmente ao vivo em cada ambiente. Criado `scripts/dokploy-redeploy.sh` — dispara o deploy via API, espera `composeStatus: done`, e só então move a tag (se o deploy falhar, a tag não se move, então nunca mente sobre o que está no ar). `deployed/prod` só passa a existir quando o ambiente `production` for criado.
+
+Consulta de "o que falta promover": `git log deployed/prod..deployed/dev --oneline`. Documentado em `DEPLOY.md` seção 8.5.
+
+**Testado ao vivo**: rodei o script contra o compose app real do dev (`u-Eq45ktBL7LOUEFC-urp`) — disparou o deploy, esperou concluir (`composeStatus: done`), moveu e empurrou a tag `deployed/dev` pro commit atual. Confirmado com `git log deployed/dev -1`.
+
 ## 2026-08-09 — Avatar do personagem na página Saldos
 
 **Pedido**: usuário pediu pra usar o avatar customizado (já existente desde a feature de Perfil — presets DiceBear ou upload próprio) também na página pública Saldos (`/saldo`), que até então só mostrava texto puro (Personagem/Nível/Saldo).
