@@ -16,8 +16,6 @@ import {
   removeAuctionItem,
   setAuctionParticipants,
   setAuctionSchedule,
-  type AuctionItem,
-  type Character,
 } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { ImageUploadInput } from '../../components/ImageUploadInput';
@@ -35,12 +33,6 @@ function datetimeLocalValueToIso(value: string): string | null {
   if (!value) return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
-
-/** Mesma regra do backend (AuctionsService.isEligible): sem proteção = todos elegíveis; com proteção = level do personagem >= level mínimo dela. */
-function isEligibleForItem(character: Character, item: AuctionItem): boolean {
-  if (!item.protectionId || !item.protection) return true;
-  return (character.level ?? 0) >= item.protection.minLevel;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -134,29 +126,21 @@ export function AuctionBuilderPage() {
 
   const auction = auctionQuery.data;
   const editable = auction?.status === 'DRAFT' || auction?.status === 'PENDING_APPROVAL';
+  // Participantes = quem participou do EVENTO fonte do leilão, sem relação
+  // nenhuma com proteção de item (isso é decidido por nível na hora do
+  // lance, item a item — ver isEligibleForItem). A lista pra escolher é
+  // sempre todo Principal ativo que recebe DKP; nada aqui é pré-filtrado
+  // por elegibilidade de item (bug corrigido em 2026-08-09 — a lista
+  // escondia quem não batia nível de nenhum item, mesmo sendo participante
+  // real do evento).
   const principals = (charactersQuery.data ?? []).filter((c) => c.status === 'PRINCIPAL' && c.membershipStatus === 'ACTIVE');
-
-  // Mesma regra de elegibilidade do backend: se o leilão já tem algum item,
-  // só mostra quem bate o requisito de nível de PELO MENOS um item (sem
-  // proteção em qualquer item = todo mundo elegível) — quem não bate nenhum
-  // não recebe código de qualquer forma, então listá-lo só atrapalharia.
-  const eligiblePrincipals =
-    auction && auction.items.length > 0
-      ? principals.filter((c) => auction.items.some((item) => isEligibleForItem(c, item)))
-      : principals;
 
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string> | null>(null);
   // Sem override manual do GM ainda: se já existem participantes salvos,
-  // parte deles; senão, seleciona todo mundo elegível automaticamente (em
-  // vez de começar vazio) — assim que o GM mexer numa caixa ou clicar
-  // Selecionar/Desmarcar todos, a escolha dele passa a mandar.
+  // parte deles; senão, começa vazio — é uma escolha manual de quem
+  // participou do evento, não faz sentido pré-marcar todo o roster ativo.
   const participantIds =
-    selectedParticipants ??
-    new Set(
-      auction && auction.participants.length > 0
-        ? auction.participants.map((p) => p.characterId)
-        : eligiblePrincipals.map((c) => c.id),
-    );
+    selectedParticipants ?? new Set(auction?.participants.map((p) => p.characterId) ?? []);
 
   const removeItemMutation = useMutation({
     mutationFn: (itemId: string) => removeAuctionItem(id!, itemId),
@@ -381,14 +365,12 @@ export function AuctionBuilderPage() {
       {editable ? (
         <>
           <p className="subtitle">
-            {auction.items.length === 0
-              ? 'Adicione itens primeiro pra filtrar automaticamente por elegibilidade.'
-              : eligiblePrincipals.length < principals.length
-                ? `Só personagens elegíveis em pelo menos 1 item aparecem aqui (${principals.length - eligiblePrincipals.length} não elegível(is) escondido(s)) — quem não bate requisito de nenhum item não recebe código de qualquer forma.`
-                : 'Nenhum item tem proteção restringindo nível — todos os Principais são elegíveis.'}
+            Marque quem participou do evento (todo Principal ativo que recebe DKP aparece aqui, independente de
+            nível). Cada um recebe um código de acesso ao leilão — se algum item tiver proteção, quem não bate o
+            nível mínimo consegue ver mas não consegue dar lance só naquele item específico.
           </p>
           <div>
-            <button type="button" onClick={() => setSelectedParticipants(new Set(eligiblePrincipals.map((c) => c.id)))}>
+            <button type="button" onClick={() => setSelectedParticipants(new Set(principals.map((c) => c.id)))}>
               Selecionar todos
             </button>{' '}
             <button type="button" onClick={() => setSelectedParticipants(new Set())}>
@@ -396,7 +378,7 @@ export function AuctionBuilderPage() {
             </button>
           </div>
           <div className="checkbox-grid">
-            {eligiblePrincipals.map((c) => (
+            {principals.map((c) => (
               <label key={c.id}>
                 <input type="checkbox" checked={participantIds.has(c.id)} onChange={() => toggleParticipant(c.id)} />
                 {c.gameName} {c.level ? `(nível ${c.level})` : ''}

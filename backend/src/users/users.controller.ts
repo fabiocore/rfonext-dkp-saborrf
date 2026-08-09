@@ -31,12 +31,4 @@ export class UsersController {
   setActive(@Param('id') id: string, @Body('isActive') isActive: boolean) {
     return this.usersService.setStaffActive(id, isActive);
   }
-
-  // GM/Vice-GM/Conselho: lista mínima de todas as contas, pra vincular um
-  // personagem a uma conta na tela de Personagens.
-  @Roles('GM', 'VICE_GM', 'COUNCIL')
-  @Get('all')
-  listAll() {
-    return this.usersService.listAll();
-  }
 }

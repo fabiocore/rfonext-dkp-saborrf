@@ -64,14 +64,13 @@ export class ProfileController {
     return this.profileService.updateAvatar(code, url);
   }
 
-  @Post(':code/level-request')
+  @Put(':code/level')
   @UseInterceptors(imageUploadInterceptor)
-  async submitLevelChangeRequest(
+  async updateLevel(
     @Param('code') code: string,
-    @Body('requestedLevel') requestedLevel: string,
+    @Body('level') level: string,
     @UploadedFile() file: Express.Multer.File | undefined,
   ) {
-    if (!file) throw new BadRequestException('Print de comprovação é obrigatório (campo esperado: "file").');
-    return this.profileService.submitLevelChangeRequest(code, Number(requestedLevel), `/uploads/${file.filename}`);
+    return this.profileService.updateLevel(code, Number(level), file ? `/uploads/${file.filename}` : undefined);
   }
 }

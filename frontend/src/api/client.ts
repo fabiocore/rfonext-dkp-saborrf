@@ -78,7 +78,6 @@ export interface Character {
   discordId: string | null;
   avatarUrl: string | null;
   profileAccessCode: string | null;
-  linkedUserId: string | null;
 }
 
 export interface ActivityComponentRef {
@@ -140,12 +139,6 @@ export interface StaffUser {
   role: UserRole;
   isActive: boolean;
   lastLoginAt: string | null;
-}
-
-export interface UserSummary {
-  id: string;
-  username: string;
-  role: UserRole;
 }
 
 export async function login(username: string, password: string) {
@@ -328,11 +321,6 @@ export async function setStaffActive(id: string, isActive: boolean): Promise<Sta
   return data;
 }
 
-export async function fetchAllUsers(): Promise<UserSummary[]> {
-  const { data } = await apiClient.get<UserSummary[]>('/users/all');
-  return data;
-}
-
 export async function uploadFile(file: File): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append('file', file);
@@ -346,17 +334,12 @@ export async function uploadFile(file: File): Promise<{ url: string }> {
 // Perfil do membro (por código de 12 caracteres, sem login) — PREMISSAS.md seção 3.
 // ---------------------------------------------------------------------------
 
-export interface LevelChangeRequest {
+export interface LevelChangeLogEntry {
   id: string;
   characterId: string;
-  requestedLevel: number;
-  proofImageUrl: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  reviewedById: string | null;
-  reviewedAt: string | null;
-  rejectReason: string | null;
+  level: number;
+  proofImageUrl: string | null;
   createdAt: string;
-  character?: { gameName: string; level: number | null };
 }
 
 export interface MemberProfile {
@@ -367,7 +350,7 @@ export interface MemberProfile {
     discordId: string | null;
     avatarUrl: string | null;
   };
-  levelChangeRequests: LevelChangeRequest[];
+  levelChangeLog: LevelChangeLogEntry[];
 }
 
 export async function fetchProfile(code: string): Promise<MemberProfile> {
@@ -404,29 +387,13 @@ export async function selectAvatarPreset(code: string, presetKey: string): Promi
   return data;
 }
 
-export async function submitLevelChangeRequest(code: string, requestedLevel: number, file: File): Promise<MemberProfile> {
+export async function updateProfileLevel(code: string, level: number, file: File | null): Promise<MemberProfile> {
   const formData = new FormData();
-  formData.append('requestedLevel', String(requestedLevel));
-  formData.append('file', file);
-  const { data } = await apiClient.post<MemberProfile>(`/public/profile/${code}/level-request`, formData, {
+  formData.append('level', String(level));
+  if (file) formData.append('file', file);
+  const { data } = await apiClient.put<MemberProfile>(`/public/profile/${code}/level`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
-  return data;
-}
-
-// Admin — fila de aprovação de mudança de nível.
-export async function fetchLevelRequests(status?: 'PENDING' | 'APPROVED' | 'REJECTED'): Promise<LevelChangeRequest[]> {
-  const { data } = await apiClient.get<LevelChangeRequest[]>('/level-requests', { params: { status } });
-  return data;
-}
-
-export async function approveLevelRequest(id: string): Promise<LevelChangeRequest> {
-  const { data } = await apiClient.post<LevelChangeRequest>(`/level-requests/${id}/approve`);
-  return data;
-}
-
-export async function rejectLevelRequest(id: string, reason: string): Promise<LevelChangeRequest> {
-  const { data } = await apiClient.post<LevelChangeRequest>(`/level-requests/${id}/reject`, { reason });
   return data;
 }
 

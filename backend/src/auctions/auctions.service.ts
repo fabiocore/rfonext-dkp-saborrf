@@ -276,10 +276,12 @@ export class AuctionsService {
     // (setSchedule) — approve() já garante que existe e está no futuro.
     const expiresAt = auction.scheduledEndAt!;
 
+    // Todo participante marcado recebe código — participação no leilão
+    // (quem esteve no evento) é independente de elegibilidade por item
+    // (nível vs. Proteção, checado no lance em si, não aqui). Bug corrigido
+    // em 2026-08-09: antes pulava gerar código pra quem não batia nível de
+    // NENHUM item, mesmo tendo participado de verdade do evento.
     for (const participant of auction.participants) {
-      const eligibleOnSomeItem = auction.items.some((item) => this.isEligible(participant.character, item));
-      if (!eligibleOnSomeItem) continue;
-
       let code = generateAccessCode();
       for (let attempt = 0; attempt < 5; attempt++) {
         const clash = await this.prisma.auctionParticipant.findUnique({ where: { accessCode: code } });

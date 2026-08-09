@@ -25,7 +25,6 @@ import { TransferPage } from './pages/admin/TransferPage';
 import { ManualAdjustmentPage } from './pages/admin/ManualAdjustmentPage';
 import { AnnouncementsPage } from './pages/admin/AnnouncementsPage';
 import { BackupPage } from './pages/admin/BackupPage';
-import { LevelRequestsPage } from './pages/admin/LevelRequestsPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import './App.css';
 
@@ -52,7 +51,6 @@ function App() {
           <Route index element={<Navigate to="imports" replace />} />
           <Route path="imports" element={<ImportsPage />} />
           <Route path="characters" element={<CharactersPage />} />
-          <Route path="level-requests" element={<LevelRequestsPage />} />
           <Route path="activities" element={<ActivitiesPage />} />
           <Route path="protections" element={<ProtectionsPage />} />
           <Route path="auctions" element={<AuctionsListPage />} />

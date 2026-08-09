@@ -6,18 +6,12 @@ import {
   fetchAvatarPresets,
   fetchProfile,
   selectAvatarPreset,
-  submitLevelChangeRequest,
   updateProfileAvatar,
   updateProfileDiscordId,
+  updateProfileLevel,
 } from '../api/client';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { DefaultAvatar } from '../components/DefaultAvatar';
-
-const LEVEL_STATUS_LABEL_KEY: Record<string, string> = {
-  PENDING: 'profile.levelStatusPending',
-  APPROVED: 'profile.levelStatusApproved',
-  REJECTED: 'profile.levelStatusRejected',
-};
 
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -40,7 +34,6 @@ export function ProfilePage() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [levelError, setLevelError] = useState<string | null>(null);
   const [levelSuccess, setLevelSuccess] = useState(false);
-  const [levelAutoApproved, setLevelAutoApproved] = useState(false);
 
   const discordMutation = useMutation({
     mutationFn: () => updateProfileDiscordId(code!, discordId.trim()),
@@ -74,13 +67,12 @@ export function ProfilePage() {
   });
 
   const levelMutation = useMutation({
-    mutationFn: () => submitLevelChangeRequest(code!, Number(requestedLevel), proofFile!),
+    mutationFn: () => updateProfileLevel(code!, Number(requestedLevel), proofFile),
     onSuccess: (data) => {
       queryClient.setQueryData(['profile', code], data);
       setRequestedLevel('');
       setProofFile(null);
       setLevelError(null);
-      setLevelAutoApproved(data.levelChangeRequests[0]?.status === 'APPROVED');
       setLevelSuccess(true);
       setTimeout(() => setLevelSuccess(false), 4000);
     },
@@ -102,8 +94,7 @@ export function ProfilePage() {
     );
   }
 
-  const { character, levelChangeRequests } = profileQuery.data;
-  const pendingRequest = levelChangeRequests.find((r) => r.status === 'PENDING');
+  const { character, levelChangeLog } = profileQuery.data;
 
   function handleDiscordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +111,7 @@ export function ProfilePage() {
   function handleLevelSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLevelError(null);
-    if (!requestedLevel || !proofFile) return;
+    if (!requestedLevel) return;
     levelMutation.mutate();
   }
 
@@ -198,63 +189,49 @@ export function ProfilePage() {
           <p>
             {character.level ? t('profile.levelCurrent', { level: character.level }) : t('profile.levelNoLevel')}
           </p>
+          <p className="subtitle">{t('profile.levelSubtitle')}</p>
 
-          {levelSuccess && (
-            <p className="form-success">
-              {t(levelAutoApproved ? 'profile.levelAutoApproved' : 'profile.levelSubmitted')}
-            </p>
-          )}
+          {levelSuccess && <p className="form-success">{t('profile.levelSubmitted')}</p>}
 
-          {pendingRequest ? (
-            <p className="subtitle">
-              {t('profile.levelPending', {
-                level: pendingRequest.requestedLevel,
-                date: new Date(pendingRequest.createdAt).toLocaleDateString(i18n.language),
-              })}
-            </p>
-          ) : (
-            <>
-              <p className="subtitle">{t('profile.levelSubtitle')}</p>
-              <form className="settings-form" onSubmit={handleLevelSubmit}>
-                <label>
-                  {t('profile.levelNewValue')}
-                  <input
-                    type="number"
-                    min={1}
-                    value={requestedLevel}
-                    onChange={(e) => setRequestedLevel(e.target.value)}
-                    style={{ width: 90 }}
-                    required
-                  />
-                </label>
-                <label>
-                  {t('profile.levelProof')}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
-                    required
-                  />
-                </label>
-                {levelError && <p className="form-error">{levelError}</p>}
-                <button type="submit" disabled={levelMutation.isPending || !requestedLevel || !proofFile}>
-                  {t('profile.levelSubmit')}
-                </button>
-              </form>
-            </>
-          )}
+          <form className="settings-form" onSubmit={handleLevelSubmit}>
+            <label>
+              {t('profile.levelNewValue')}
+              <input
+                type="number"
+                min={1}
+                value={requestedLevel}
+                onChange={(e) => setRequestedLevel(e.target.value)}
+                style={{ width: 90 }}
+                required
+              />
+            </label>
+            <label>
+              {t('profile.levelProof')}
+              <input type="file" accept="image/*" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} />
+            </label>
+            {levelError && <p className="form-error">{levelError}</p>}
+            <button type="submit" disabled={levelMutation.isPending || !requestedLevel}>
+              {t('profile.levelSubmit')}
+            </button>
+          </form>
 
-          {levelChangeRequests.length > 0 && (
+          {levelChangeLog.length > 0 && (
             <>
               <h3 style={{ marginTop: 16 }}>{t('profile.levelHistoryTitle')}</h3>
               <table className="data-table">
                 <tbody>
-                  {levelChangeRequests.map((r) => (
-                    <tr key={r.id}>
-                      <td>{new Date(r.createdAt).toLocaleDateString(i18n.language)}</td>
-                      <td>{r.requestedLevel}</td>
+                  {levelChangeLog.map((entry) => (
+                    <tr key={entry.id}>
+                      <td>{new Date(entry.createdAt).toLocaleDateString(i18n.language)}</td>
+                      <td>{entry.level}</td>
                       <td>
-                        {t(LEVEL_STATUS_LABEL_KEY[r.status], { reason: r.rejectReason })}
+                        {entry.proofImageUrl ? (
+                          <a href={entry.proofImageUrl} target="_blank" rel="noreferrer">
+                            {t('profile.levelProofLink')}
+                          </a>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                     </tr>
                   ))}

@@ -1,14 +1,14 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isValidDiscordHandle } from '../common/discord-handle.util';
 
 /**
  * Perfil self-service do membro, acessado por código de 12 caracteres (sem
- * login) — PREMISSAS.md seção 3. Nível nunca aplica na hora: sempre vira um
- * `LevelChangeRequest` PENDING, porque nível decide elegibilidade em item de
- * leilão com Proteção — precisa de revisão do GM/conselho antes de valer
- * (confirmado com o usuário antes de implementar). Discord ID e avatar
- * aplicam na hora, sem aprovação — sem impacto na elegibilidade/economia.
+ * login) — PREMISSAS.md seção 3. Discord ID, avatar e nível aplicam todos na
+ * hora, sem aprovação — a fila de aprovação de nível foi removida em
+ * 2026-08-09 (não estava funcionando bem na prática e adicionava fricção
+ * sem necessidade real; GM/conselho já pode corrigir qualquer nível
+ * diretamente na tela de Personagens se precisar).
  */
 @Injectable()
 export class ProfileService {
@@ -22,7 +22,7 @@ export class ProfileService {
 
   async getProfile(code: string) {
     const character = await this.resolveByCode(code);
-    const levelChangeRequests = await this.prisma.levelChangeRequest.findMany({
+    const levelChangeLog = await this.prisma.levelChangeRequest.findMany({
       where: { characterId: character.id },
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -35,7 +35,7 @@ export class ProfileService {
         discordId: character.discordId,
         avatarUrl: character.avatarUrl,
       },
-      levelChangeRequests,
+      levelChangeLog,
     };
   }
 
@@ -55,88 +55,19 @@ export class ProfileService {
     return this.getProfile(code);
   }
 
-  async submitLevelChangeRequest(code: string, requestedLevel: number, proofImageUrl: string) {
+  /** Aplica o nível na hora — print de comprovação é opcional (só fica registrado no histórico, ninguém revisa). */
+  async updateLevel(code: string, level: number, proofImageUrl?: string) {
     const character = await this.resolveByCode(code);
-    if (!Number.isInteger(requestedLevel) || requestedLevel < 1) {
+    if (!Number.isInteger(level) || level < 1) {
       throw new BadRequestException('Nível inválido.');
     }
-    if (!proofImageUrl) {
-      throw new BadRequestException('Print de comprovação é obrigatório.');
-    }
-    const existingPending = await this.prisma.levelChangeRequest.findFirst({
-      where: { characterId: character.id, status: 'PENDING' },
-    });
-    if (existingPending) {
-      throw new BadRequestException('Você já tem uma solicitação de nível aguardando revisão.');
-    }
 
-    // Personagem vinculado a uma conta GM/Vice-GM/Conselho: essa pessoa já
-    // pode editar nível livremente pela tela de Personagens, então o próprio
-    // pedido no perfil dela aplica na hora — fica registrado como já
-    // aprovado (histórico consistente), sem passar pela fila de mais
-    // ninguém (adicionado em 2026-08-09, PREMISSAS.md seção 8).
-    const linkedAccount = character.linkedUserId
-      ? await this.prisma.user.findUnique({ where: { id: character.linkedUserId } })
-      : null;
-
-    if (linkedAccount) {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.character.update({ where: { id: character.id }, data: { level: requestedLevel } });
-        await tx.levelChangeRequest.create({
-          data: {
-            characterId: character.id,
-            requestedLevel,
-            proofImageUrl,
-            status: 'APPROVED',
-            reviewedById: linkedAccount.id,
-            reviewedAt: new Date(),
-          },
-        });
+    await this.prisma.$transaction(async (tx) => {
+      await tx.character.update({ where: { id: character.id }, data: { level } });
+      await tx.levelChangeRequest.create({
+        data: { characterId: character.id, level, proofImageUrl: proofImageUrl || null },
       });
-      return this.getProfile(code);
-    }
-
-    await this.prisma.levelChangeRequest.create({
-      data: { characterId: character.id, requestedLevel, proofImageUrl },
     });
     return this.getProfile(code);
-  }
-
-  // ---------------------------------------------------------------------
-  // Admin (GM/conselho) — fila de aprovação
-  // ---------------------------------------------------------------------
-
-  listLevelRequests(status?: 'PENDING' | 'APPROVED' | 'REJECTED') {
-    return this.prisma.levelChangeRequest.findMany({
-      where: status ? { status } : {},
-      orderBy: { createdAt: 'desc' },
-      include: { character: { select: { gameName: true, level: true } } },
-    });
-  }
-
-  async approveLevelRequest(id: string, reviewerId: string) {
-    const request = await this.prisma.levelChangeRequest.findUnique({ where: { id } });
-    if (!request) throw new NotFoundException('Solicitação não encontrada.');
-    if (request.status !== 'PENDING') throw new ForbiddenException('Esta solicitação já foi revisada.');
-
-    return this.prisma.$transaction(async (tx) => {
-      await tx.character.update({ where: { id: request.characterId }, data: { level: request.requestedLevel } });
-      return tx.levelChangeRequest.update({
-        where: { id },
-        data: { status: 'APPROVED', reviewedById: reviewerId, reviewedAt: new Date() },
-      });
-    });
-  }
-
-  async rejectLevelRequest(id: string, reviewerId: string, reason: string) {
-    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra rejeitar.');
-    const request = await this.prisma.levelChangeRequest.findUnique({ where: { id } });
-    if (!request) throw new NotFoundException('Solicitação não encontrada.');
-    if (request.status !== 'PENDING') throw new ForbiddenException('Esta solicitação já foi revisada.');
-
-    return this.prisma.levelChangeRequest.update({
-      where: { id },
-      data: { status: 'REJECTED', reviewedById: reviewerId, reviewedAt: new Date(), rejectReason: reason.trim() },
-    });
   }
 }

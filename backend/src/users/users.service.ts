@@ -24,15 +24,6 @@ export class UsersService {
     return users.map(sanitize);
   }
 
-  /** Todas as contas (GM/Vice-GM/Conselho) — só id/username/role, pra popular o dropdown de vínculo em Personagens. */
-  async listAll() {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, username: true, role: true },
-    });
-    return users;
-  }
-
   /**
    * Cria conta de Conselho ou Vice-GM com senha numérica aleatória de 10
    * dígitos, gerada pelo sistema — só GM/Vice-GM vê essa senha aqui, uma vez

@@ -65,7 +65,6 @@ model User {
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  linkedCharacter Character?
 }
 
 enum CharacterStatus {
@@ -114,49 +113,30 @@ model Character {
   avatarUrl          String?
   profileAccessCode  String?   @unique
 
-  // Vínculo opcional a uma conta de login (GM/Vice-GM/Conselho) — adicionado
-  // em 2026-08-09. Quando o dono de uma conta pede atualização de nível pelo
-  // PRÓPRIO personagem via /perfil, aplica na hora (sem fila de aprovação),
-  // já que essa pessoa já tem autoridade pra editar nível livremente pela
-  // tela de Personagens mesmo. Setado manualmente pelo GM/conselho, um
-  // personagem por conta (por isso @unique).
-  linkedUserId       String?   @unique
-  linkedUser         User?     @relation(fields: [linkedUserId], references: [id])
-
   ledgerTransactions LedgerTransaction[]
   activityCheckIns   ActivityCheckIn[]
   auctionParticipations AuctionParticipant[]
   bids               Bid[]
   auctionWithdrawals AuctionItemWithdrawal[]
-  levelChangeRequests LevelChangeRequest[]
+  levelChangeLog     LevelChangeRequest[]
 
   @@index([status, membershipStatus])
 }
 
-enum LevelChangeRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-// Pedido de atualização de nível feito pelo próprio membro via /perfil —
-// nunca aplica na hora (nível decide elegibilidade em item de leilão com
-// Proteção, então precisa de revisão do GM/conselho antes de valer). Print
-// de comprovação sempre obrigatório.
+// Log histórico de trocas de nível feitas pelo próprio membro via /perfil —
+// aplica na hora, sem aprovação (removida em 2026-08-09: nível não decide
+// mais nada automaticamente que precise de revisão prévia; GM/conselho
+// ajusta manualmente na tela de Personagens se algo parecer errado). Print
+// de comprovação é opcional, só pra referência de quem quiser anexar.
 model LevelChangeRequest {
-  id             String   @id @default(uuid())
-  characterId    String
-  character      Character @relation(fields: [characterId], references: [id])
-  requestedLevel Int
-  proofImageUrl  String
-  status         LevelChangeRequestStatus @default(PENDING)
-  reviewedById   String?
-  reviewedAt     DateTime?
-  rejectReason   String?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid())
+  characterId   String
+  character     Character @relation(fields: [characterId], references: [id])
+  level         Int
+  proofImageUrl String?
+  createdAt     DateTime @default(now())
 
   @@index([characterId])
-  @@index([status])
 }
 
 enum ActivitySourceType {

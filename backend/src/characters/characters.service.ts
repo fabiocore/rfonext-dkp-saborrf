@@ -116,7 +116,7 @@ export class CharactersService {
     });
   }
 
-  async updateProfile(
+  updateProfile(
     id: string,
     data: {
       status?: 'PRINCIPAL' | 'ALT' | 'ALT_ONLY';
@@ -125,26 +125,16 @@ export class CharactersService {
       membershipStatus?: 'ACTIVE' | 'UNKNOWN' | 'LEFT';
       notes?: string | null;
       discordId?: string | null;
-      linkedUserId?: string | null;
     },
   ) {
-    // level e vínculo de conta só fazem sentido pra Principal (só ele tem
-    // perfil público self-service); limpos automaticamente nos outros casos.
+    // level só faz sentido pra Principal (é o único que tem perfil público
+    // self-service); limpo automaticamente nos outros casos.
     const patch: typeof data = { ...data };
     if (patch.status && patch.status !== 'PRINCIPAL') {
       patch.level = null;
-      patch.linkedUserId = null;
     }
     if (patch.status && patch.status !== 'ALT') {
       patch.linkedPrincipalId = null;
-    }
-    if (patch.linkedUserId) {
-      const account = await this.prisma.user.findUnique({ where: { id: patch.linkedUserId } });
-      if (!account) throw new NotFoundException('Conta não encontrada.');
-      const alreadyLinked = await this.prisma.character.findUnique({ where: { linkedUserId: patch.linkedUserId } });
-      if (alreadyLinked && alreadyLinked.id !== id) {
-        throw new BadRequestException(`Essa conta já está vinculada a "${alreadyLinked.gameName}".`);
-      }
     }
     if (patch.discordId !== undefined && patch.discordId !== null && patch.discordId !== '') {
       if (!isValidDiscordHandle(patch.discordId)) {

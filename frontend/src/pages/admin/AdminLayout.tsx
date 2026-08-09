@@ -29,7 +29,6 @@ export function AdminLayout() {
             <span className="admin-nav-group-label">Dados do Jogo</span>
             <NavLink to="/admin/imports">Importações</NavLink>
             <NavLink to="/admin/characters">Personagens</NavLink>
-            <NavLink to="/admin/level-requests">Solicitações de Nível</NavLink>
           </div>
           <div className="admin-nav-group">
             <span className="admin-nav-group-label">Atividades &amp; Conteúdo Público</span>
