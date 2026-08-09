@@ -4,6 +4,15 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Fix: pedido de nível "não aparecia" na tela de perfil
+
+**Contexto**: usuário reportou que testou o pedido de atualização de nível no próprio personagem e "não apareceu nada" depois de enviar.
+
+**Causa raiz, confirmada testando ao vivo (curl + simulação de submit real na UI via input file/change events)**: o backend e a leitura funcionavam perfeitamente (confirmado via curl: pedido criado, aparece na fila admin) — o bug era puramente de renderização. A mensagem de sucesso (`form-success`) vivia dentro do mesmo bloco `{pendingRequest ? (...resumo pendente...) : (...formulário + mensagem de sucesso...)}`. Como a própria resposta da mutation já inclui o pedido `PENDING` recém-criado, `pendingRequest` vira verdadeiro no mesmo re-render em que o sucesso acontece — o React troca imediatamente pro branch do resumo, e o branch que mostraria "Solicitação enviada!" nunca chega a renderizar. Pra quem não reparasse na troca sutil de texto, realmente parecia que nada tinha acontecido (mesmo o pedido tendo sido criado e reaparecendo certinho num reload).
+
+**Fix**: `frontend/src/pages/ProfilePage.tsx` — movida a mensagem de sucesso pra fora do ternário, sempre visível independente de qual branch (formulário vs. resumo pendente) está renderizando.
+
+**Testado ao vivo**: reproduzido o bug exato (submit via simulação de evento de arquivo real na UI — não só curl), confirmado que a mensagem não aparecia antes do fix e aparece corretamente depois ("Solicitação enviada! Aguarde a revisão do GM/conselho." junto com o resumo "Você tem uma solicitação pendente"), sem duplicar o pedido no banco. Dados de teste (personagem Agrute) revertidos ao final.
 ## 2026-08-09 — Troca de senha self-service (GM e Conselho)
 
 **Contexto**: até agora não existia nenhuma forma de trocar a própria senha logado — a única opção documentada no `DEPLOY.md` era recriar a conta de GM direto no banco. Pedido explícito pra resolver isso.
