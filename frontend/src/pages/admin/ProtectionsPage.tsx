@@ -28,7 +28,8 @@ function ProtectionRow({ protection, currencyAbbr }: { protection: Protection; c
         <input value={description} onChange={(e) => setDescription(e.target.value)} style={{ width: '100%' }} />
       </td>
       <td>
-        <input type="number" min={0} value={minBid} onChange={(e) => setMinBid(Number(e.target.value))} style={{ width: 80 }} />
+        <input type="number" min={0} value={minBid} onChange={(e) => setMinBid(Number(e.target.value))} style={{ width: 80 }} />{' '}
+        {currencyAbbr}
       </td>
       <td>
         <input
