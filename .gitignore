@@ -43,3 +43,6 @@ docker-compose.override.yml
 
 # XMLs de exemplo/dados reais da guild, doc de regras — referência local, não é código do app
 /Source/
+
+# Deploy keys SSH geradas localmente pro scripts/dokploy-deploy.sh — nunca versionar
+/.dokploy/
