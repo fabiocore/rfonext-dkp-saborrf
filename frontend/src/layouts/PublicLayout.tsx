@@ -21,7 +21,6 @@ export function PublicLayout() {
               <HomeIcon />
             </NavLink>
             <NavLink to="/leiloes">{t('nav.auctions')}</NavLink>
-            <NavLink to="/codigo">{t('nav.code')}</NavLink>
             <NavLink to="/saldo">{t('nav.balances')}</NavLink>
             <NavLink to="/extrato">{t('nav.feed')}</NavLink>
             <NavLink to="/perfil">{t('nav.profile')}</NavLink>

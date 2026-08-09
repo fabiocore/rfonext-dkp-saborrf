@@ -331,7 +331,11 @@ export function AuctionBuilderPage() {
               <td>
                 {item.resolutionStatus === 'PENDING' && 'Em andamento'}
                 {item.resolutionStatus === 'UNCLAIMED' && 'Não reclamado — será randomizado no jogo'}
-                {item.resolutionStatus === 'WON' && `Vencido`}
+                {item.resolutionStatus === 'WON' && item.winningBid && (
+                  <strong>
+                    {item.winningBid.character.gameName} — {item.winningBid.amount}
+                  </strong>
+                )}
                 {item.resolutionStatus === 'CANCELLED' && `Encerrado pelo GM: ${item.cancelReason}`}
               </td>
               <td>{item.withdrawals.map((w) => w.character.gameName).join(', ') || '—'}</td>

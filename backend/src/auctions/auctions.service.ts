@@ -1,7 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateAccessCode } from './auction-code.util';
 import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+
+type ResolvableItem = {
+  id: string;
+  bids: { id: string; amount: number; characterId: string; character: { gameName: string } }[];
+  withdrawals: { characterId: string }[];
+};
 
 const EDITABLE_STATUSES = ['DRAFT', 'PENDING_APPROVAL'] as const;
 
@@ -358,6 +365,11 @@ export class AuctionsService {
     const participant = await this.resolveParticipant(code);
     const walletBalance = await this.getBalance(participant.characterId);
     const hold = await this.computeHold(participant.characterId, null);
+    const guildSettings = await this.prisma.guildSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1, guildName: 'Minha Guild' },
+    });
 
     const items = participant.auction.items.map((item) => {
       const withdrawnCharacterIds = new Set(item.withdrawals.map((w) => w.characterId));
@@ -369,6 +381,13 @@ export class AuctionsService {
         .reduce((max, b) => Math.max(max, b.amount), 0);
       const winningBid = item.winningBidId ? item.bids.find((b) => b.id === item.winningBidId) : undefined;
       const won = winningBid?.characterId === participant.characterId;
+      // Lance mínimo de verdade pra esse item: se ainda não tem lance
+      // nenhum, é o mínimo configurado (proteção ou padrão da guild) — sem
+      // somar 1 (bug corrigido em 2026-08-09: se a proteção pede mínimo 30,
+      // o primeiro lance pode ser exatamente 30). Só quando já existe um
+      // líder é que o próximo lance precisa SUPERAR (+1).
+      const configuredMin = item.protection ? item.protection.minBid : guildSettings.defaultMinBid;
+      const minBid = leadingAmount > 0 ? leadingAmount + 1 : configuredMin;
       return {
         id: item.id,
         name: item.name,
@@ -377,6 +396,7 @@ export class AuctionsService {
         protection: item.protection,
         eligible,
         leadingAmount,
+        minBid,
         ownAmount,
         won,
         bidCount: activeBids.length,
@@ -606,34 +626,97 @@ export class AuctionsService {
   }
 
   /**
-   * GM encerra o leilão inteiro antes da hora (motivo obrigatório) — todo
-   * item ainda PENDING vira CANCELLED com o mesmo motivo, e o leilão fecha.
-   * Saldo "reservado" de todo mundo libera na hora, pelo mesmo motivo do
-   * cancelItem: nunca houve débito real, só deixa de contar no hold.
+   * Resolve UM item PENDING — mesma lógica usada no fechamento automático
+   * (resolveExpiredAuctions) e agora também no manual (closeAuction): sem
+   * lance ativo nenhum vira UNCLAIMED; com lance, o maior ganha (empate
+   * resolvido por dado), queima o valor do vencedor e marca WON. Extraído
+   * em 2026-08-09 — antes closeAuction simplesmente cancelava todo item
+   * PENDING, mesmo os que já tinham um lance/vencedor de verdade.
+   */
+  private async resolvePendingItem(tx: Prisma.TransactionClient, item: ResolvableItem) {
+    const withdrawnIds = new Set(item.withdrawals.map((w) => w.characterId));
+    const activeBids = item.bids.filter((b) => !withdrawnIds.has(b.characterId));
+
+    if (activeBids.length === 0) {
+      await tx.auctionItem.update({
+        where: { id: item.id },
+        data: { resolutionStatus: 'UNCLAIMED', resolvedAt: new Date() },
+      });
+      return;
+    }
+
+    const leadingAmount = activeBids.reduce((max, b) => Math.max(max, b.amount), 0);
+    const leaderBidsByCharacter = new Map<string, (typeof activeBids)[number]>();
+    for (const bid of activeBids) {
+      if (bid.amount === leadingAmount) leaderBidsByCharacter.set(bid.characterId, bid);
+    }
+    const tiedBids = Array.from(leaderBidsByCharacter.values());
+
+    let winningBid = tiedBids[0];
+    let diceRollDetail: unknown = null;
+    if (tiedBids.length > 1) {
+      const rolls = tiedBids.map((bid) => ({
+        characterId: bid.characterId,
+        gameName: bid.character.gameName,
+        roll: 1 + Math.floor(Math.random() * 100),
+      }));
+      const highest = rolls.reduce((best, r) => (r.roll > best.roll ? r : best), rolls[0]);
+      winningBid = tiedBids.find((b) => b.characterId === highest.characterId)!;
+      diceRollDetail = { rolls, winnerCharacterId: highest.characterId };
+    }
+
+    await tx.ledgerTransaction.create({
+      data: {
+        characterId: winningBid.characterId,
+        amount: -winningBid.amount,
+        type: 'AUCTION_WIN_BURN',
+        auctionItemId: item.id,
+      },
+    });
+    await tx.auctionItem.update({
+      where: { id: item.id },
+      data: {
+        resolutionStatus: 'WON',
+        winningBidId: winningBid.id,
+        diceRollDetail: diceRollDetail as any,
+        resolvedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * GM encerra o leilão inteiro antes da hora (motivo obrigatório, documenta
+   * por que fechou antes do horário programado) — cada item ainda PENDING
+   * é resolvido de verdade (mesma regra do fechamento automático: quem
+   * já tinha o maior lance ganha), não simplesmente cancelado. Saldo
+   * "reservado" de quem não venceu libera na hora (nunca houve débito real,
+   * só deixa de contar no hold).
    */
   async closeAuction(auctionId: string, reason: string) {
     if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra encerrar o leilão.');
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
-      include: { items: { where: { resolutionStatus: 'PENDING' }, select: { id: true } } },
+      include: {
+        items: {
+          where: { resolutionStatus: 'PENDING' },
+          include: { bids: { include: { character: true } }, withdrawals: { select: { characterId: true } } },
+        },
+      },
     });
     if (!auction) throw new NotFoundException('Leilão não encontrado.');
     if (auction.status !== 'OPEN') {
       throw new BadRequestException('Só é possível encerrar um leilão publicado e aberto.');
     }
 
-    const pendingItemIds = auction.items.map((i) => i.id).sort();
     const trimmedReason = reason.trim();
+    const pendingItems = [...auction.items].sort((a, b) => a.id.localeCompare(b.id));
 
     return this.prisma.$transaction(async (tx) => {
-      for (const itemId of pendingItemIds) {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${itemId})::bigint)`;
+      for (const item of pendingItems) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${item.id})::bigint)`;
       }
-      if (pendingItemIds.length > 0) {
-        await tx.auctionItem.updateMany({
-          where: { id: { in: pendingItemIds }, resolutionStatus: 'PENDING' },
-          data: { resolutionStatus: 'CANCELLED', cancelReason: trimmedReason, resolvedAt: new Date() },
-        });
+      for (const item of pendingItems) {
+        await this.resolvePendingItem(tx, item);
       }
       return tx.auction.update({
         where: { id: auctionId },
@@ -721,58 +804,7 @@ export class AuctionsService {
 
     for (const auction of expired) {
       for (const item of auction.items) {
-        // Ignora lances de quem já desistiu do item — mesma regra usada em
-        // hold/placeBid/withdraw, pra não declarar um "fantasma" vencedor.
-        const withdrawnIds = new Set(item.withdrawals.map((w) => w.characterId));
-        const activeBids = item.bids.filter((b) => !withdrawnIds.has(b.characterId));
-
-        if (activeBids.length === 0) {
-          await this.prisma.auctionItem.update({
-            where: { id: item.id },
-            data: { resolutionStatus: 'UNCLAIMED', resolvedAt: new Date() },
-          });
-          continue;
-        }
-
-        const leadingAmount = activeBids.reduce((max, b) => Math.max(max, b.amount), 0);
-        const leaderBidsByCharacter = new Map<string, (typeof activeBids)[number]>();
-        for (const bid of activeBids) {
-          if (bid.amount === leadingAmount) leaderBidsByCharacter.set(bid.characterId, bid);
-        }
-        const tiedBids = Array.from(leaderBidsByCharacter.values());
-
-        let winningBid = tiedBids[0];
-        let diceRollDetail: unknown = null;
-        if (tiedBids.length > 1) {
-          const rolls = tiedBids.map((bid) => ({
-            characterId: bid.characterId,
-            gameName: bid.character.gameName,
-            roll: 1 + Math.floor(Math.random() * 100),
-          }));
-          const highest = rolls.reduce((best, r) => (r.roll > best.roll ? r : best), rolls[0]);
-          winningBid = tiedBids.find((b) => b.characterId === highest.characterId)!;
-          diceRollDetail = { rolls, winnerCharacterId: highest.characterId };
-        }
-
-        await this.prisma.$transaction(async (tx) => {
-          await tx.ledgerTransaction.create({
-            data: {
-              characterId: winningBid.characterId,
-              amount: -winningBid.amount,
-              type: 'AUCTION_WIN_BURN',
-              auctionItemId: item.id,
-            },
-          });
-          await tx.auctionItem.update({
-            where: { id: item.id },
-            data: {
-              resolutionStatus: 'WON',
-              winningBidId: winningBid.id,
-              diceRollDetail: diceRollDetail as any,
-              resolvedAt: new Date(),
-            },
-          });
-        });
+        await this.prisma.$transaction((tx) => this.resolvePendingItem(tx, item));
       }
 
       await this.prisma.auction.update({ where: { id: auction.id }, data: { status: 'CLOSED' } });

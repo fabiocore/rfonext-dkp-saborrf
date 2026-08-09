@@ -537,6 +537,7 @@ export interface AuctionItem {
   protection: Protection | null;
   imageUrl: string | null;
   winningBidId: string | null;
+  winningBid: { amount: number; character: { gameName: string } } | null;
   resolutionStatus: 'PENDING' | 'WON' | 'UNCLAIMED' | 'CANCELLED';
   cancelReason: string | null;
   diceRollDetail: unknown;
@@ -692,6 +693,7 @@ export interface PlayerAuctionItemView {
   protection: Protection | null;
   eligible: boolean;
   leadingAmount: number;
+  minBid: number;
   ownAmount: number;
   won: boolean;
   bidCount: number;

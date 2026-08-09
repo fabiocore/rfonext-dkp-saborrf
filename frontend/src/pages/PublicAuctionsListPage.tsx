@@ -1,7 +1,39 @@
+import { useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchPublicAuctions } from '../api/client';
+
+function CodeEntryForm() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [code, setCode] = useState('');
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    navigate(`/oferta/${trimmed}`);
+  }
+
+  return (
+    <div className="auction-item-card" style={{ marginBottom: 16 }}>
+      <h3 style={{ marginTop: 0 }}>{t('codeEntry.title')}</h3>
+      <p className="subtitle">{t('codeEntry.subtitle')}</p>
+      <form className="inline-form" onSubmit={handleSubmit}>
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder={t('codeEntry.placeholder') as string}
+          style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}
+        />
+        <button type="submit" disabled={!code.trim()}>
+          {t('codeEntry.submit')}
+        </button>
+      </form>
+    </div>
+  );
+}
 
 export function PublicAuctionsListPage() {
   const { t } = useTranslation();
@@ -15,6 +47,9 @@ export function PublicAuctionsListPage() {
   return (
     <section>
       <h1>{t('auctions.listTitle')}</h1>
+
+      <CodeEntryForm />
+
       <p className="subtitle">{t('auctions.listSubtitle')}</p>
 
       {auctionsQuery.data?.length === 0 && <p>{t('auctions.empty')}</p>}

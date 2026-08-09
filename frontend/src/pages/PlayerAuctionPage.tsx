@@ -24,7 +24,7 @@ function ItemCard({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const minNext = Math.max(item.leadingAmount, item.protection?.minBid ?? 0) + 1;
+  const minNext = item.minBid;
   const [amount, setAmount] = useState(minNext);
   const [error, setError] = useState<string | null>(null);
 

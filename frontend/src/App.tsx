@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { PublicLayout } from './layouts/PublicLayout';
 import { HomePage } from './pages/HomePage';
-import { EnterCodePage } from './pages/EnterCodePage';
 import { BalancesPage } from './pages/BalancesPage';
 import { PublicAuctionsListPage } from './pages/PublicAuctionsListPage';
 import { PublicAuctionDetailPage } from './pages/PublicAuctionDetailPage';
@@ -36,7 +35,8 @@ function App() {
         <Route path="saldo" element={<BalancesPage />} />
         <Route path="leiloes" element={<PublicAuctionsListPage />} />
         <Route path="leiloes/:id" element={<PublicAuctionDetailPage />} />
-        <Route path="codigo" element={<EnterCodePage />} />
+        {/* O código do leilão passou a ser digitado direto na página Leilões (2026-08-09) — redireciona quem tinha o link antigo salvo. */}
+        <Route path="codigo" element={<Navigate to="/leiloes" replace />} />
         <Route path="extrato" element={<TransparencyFeedPage />} />
         <Route path="perfil" element={<ProfileCodeEntryPage />} />
       </Route>
