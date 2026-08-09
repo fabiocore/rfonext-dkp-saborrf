@@ -4,6 +4,19 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Fix real de fuso horário em data/hora única de Atividades/Eventos + ajustes de UI
+
+**Bug real, confirmado e corrigido**: usuário reportou que um evento marcado pra 21h BRT aparecia como 18:00. Causa: `<input type="datetime-local">` devolve uma string SEM fuso (ex: "2026-08-09T21:00"); o código mandava essa string crua pro backend, que roda em UTC dentro do container — `new Date("2026-08-09T21:00")` no backend foi interpretado como 21h **UTC** (não 21h BRT), gravando 3h adiantado. Confirmado testando: `date` do container mostra UTC; `new Date('2026-08-09T21:00')` no `node` do container realmente retorna `21:00:00.000Z`. Afetava tanto "Data/hora" de Eventos Personalizados quanto de Atividades (mesmo componente `ScheduleEditor`, reusado pelas duas telas) — nos dois sentidos: ao salvar (grava errado) e ao reabrir pra editar (pré-preenchia errado também).
+
+**Fix**: novas funções em `scheduleTimezone.ts` — `localDatetimeInputToUtcIso` (converte a string do input, interpretada no fuso do navegador de quem preenche, pra ISO UTC de verdade antes de mandar pro backend) e `utcIsoToLocalDatetimeInput` (caminho inverso, pra reabrir o formulário de edição com a hora certa no fuso de quem está editando). Aplicado em `CustomEventsPage.tsx` (criar evento) e `ActivitiesPage.tsx` (`ScheduleEditor`, usado nas duas telas).
+
+**Testado ao vivo**: criei um evento de teste às 21h (fuso America/Sao_Paulo, confirmado via `Intl.DateTimeFormat` no navegador) — a tela de admin mostrou "21:00" corretamente, e o valor bruto no banco ficou `2026-08-11 00:00:00` (UTC), exatamente 21h BRT do dia anterior — bate. Evento de teste removido ao final.
+
+**Outros 3 pedidos na mesma mensagem**:
+- **"Corte semanal" → "Imposto semanal"**: conferido que nunca tinha sido renomeado antes (o resto da tela já usava "Imposto semanal" em outros campos — só "Horário do corte semanal" e o bloco de disparo manual ainda diziam "corte"). Unificado em `SettingsPage.tsx`.
+- **"Nome da atividade composta" ocupando a tela**: `CreateCompositeActivityForm` (em `ActivitiesPage.tsx`) virou colapsável — mostra só um botão "+ Criar atividade composta" por padrão, expande ao clicar (com botão "Cancelar" pra fechar de novo).
+- **Fluxo de proteção de leilão**: investigado o modelo atual (não implementada mudança nenhuma ainda — ver resposta ao usuário na conversa): existem 2 camadas já implementadas — "Participantes" (quem participou do evento fonte, marcado manualmente, só eles recebem código de acesso) e elegibilidade por item (automática: nível do personagem vs. nível mínimo da Proteção escolhida pro item, sem lista manual separada por item). Perguntado ao usuário o que especificamente sente como complicado nesse fluxo antes de alterar.
+
 ## 2026-08-09 — Papel Vice-GM, vínculo personagem↔conta (nível auto-aprovado) e ID do Discord mais flexível
 
 **Contexto**: 3 pedidos na mesma mensagem, depois de testar o ambiente dev. (1) ID do Discord rejeitava `FabioSilva#5674` (formato usuário#tag) — usuário achou a validação errada demais. (2) GM/Conselho já editam nível livremente pela tela de Personagens, mas o próprio pedido deles via `/perfil` ainda caía na fila de aprovação — queria que aplicasse na hora nesse caso. (3) Pedido de um papel novo "Vice-GM" com os mesmos direitos do GM em tudo, e uma forma de marcar na tela de Personagens quem é GM/Vice-GM/Conselho. Perguntei 3 pontos antes de implementar (respostas do usuário): aceitar usuário/tag do Discord além do ID numérico; vincular personagem à conta de login existente (não um campo solto); sem limite de quantidade de contas no sistema.

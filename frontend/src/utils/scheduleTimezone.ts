@@ -86,6 +86,29 @@ export function nextOccurrenceOf(weekdayUtc: number, timeUtcMinutes: number, fro
   return target;
 }
 
+/**
+ * <input type="datetime-local"> devolve uma string SEM fuso (ex:
+ * "2026-08-09T21:00") — representa a hora de parede de quem está digitando,
+ * no fuso do navegador dela. `new Date(...)` de uma string assim é
+ * interpretado como hora LOCAL do ambiente que rodar esse código; como isso
+ * roda no navegador, o fuso certo (de quem está cadastrando) é usado. Só
+ * depois disso vira UTC de verdade (.toISOString()), pronto pra mandar pro
+ * backend — nunca mandar a string crua, porque o container do backend roda
+ * em UTC e reinterpretaria "21:00" como 21h UTC, não 21h do fuso de quem
+ * cadastrou (bug real encontrado em 2026-08-09: evento marcado 21h BRT
+ * aparecia como 18h na home).
+ */
+export function localDatetimeInputToUtcIso(localDatetime: string): string {
+  return new Date(localDatetime).toISOString();
+}
+
+/** Caminho inverso — pra reabrir o formulário de edição com a data/hora certas no fuso de quem está editando agora. */
+export function utcIsoToLocalDatetimeInput(utcIso: string): string {
+  const d = new Date(utcIso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 /** Texto pronto pra exibição, já convertido pro fuso do navegador de quem está vendo (ex: "Segunda, Quarta às 21:00"). */
 export function formatRecurringSchedule(weekdaysUtc: number[], timeUtcMinutes: number, locale: string): string {
   if (weekdaysUtc.length === 0) return '';

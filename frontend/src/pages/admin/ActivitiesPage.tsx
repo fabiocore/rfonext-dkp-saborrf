@@ -12,7 +12,12 @@ import {
 import { ImageUploadInput } from '../../components/ImageUploadInput';
 import { GearIcon } from '../../components/GearIcon';
 import { CalendarIcon } from '../../components/CalendarIcon';
-import { localWeekdaysAndTimeToUtc, utcWeekdaysAndTimeToLocal } from '../../utils/scheduleTimezone';
+import {
+  localDatetimeInputToUtcIso,
+  localWeekdaysAndTimeToUtc,
+  utcIsoToLocalDatetimeInput,
+  utcWeekdaysAndTimeToLocal,
+} from '../../utils/scheduleTimezone';
 
 export const WEEKDAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -56,7 +61,9 @@ function ComponentsEditor({ activity, allActivities }: { activity: Activity; all
 export function ScheduleEditor({ activity }: { activity: Activity }) {
   const queryClient = useQueryClient();
   const [scheduleType, setScheduleType] = useState(activity.scheduleType);
-  const [scheduleOneTimeAt, setScheduleOneTimeAt] = useState(activity.scheduleOneTimeAt?.slice(0, 16) ?? '');
+  const [scheduleOneTimeAt, setScheduleOneTimeAt] = useState(
+    activity.scheduleOneTimeAt ? utcIsoToLocalDatetimeInput(activity.scheduleOneTimeAt) : '',
+  );
   const [imageUrl, setImageUrl] = useState<string | null>(activity.imageUrl);
 
   // Os dias/horário salvos vêm em UTC; decodifica pro fuso de quem está
@@ -78,7 +85,8 @@ export function ScheduleEditor({ activity }: { activity: Activity }) {
           : { weekdaysUtc: [], timeUtcMinutes: null as number | null };
       return updateActivity(activity.id, {
         scheduleType,
-        scheduleOneTimeAt: scheduleType === 'ONE_TIME' ? scheduleOneTimeAt || null : null,
+        scheduleOneTimeAt:
+          scheduleType === 'ONE_TIME' && scheduleOneTimeAt ? localDatetimeInputToUtcIso(scheduleOneTimeAt) : null,
         scheduleWeekdaysUtc: scheduleType === 'RECURRING' ? weekdaysUtc : [],
         scheduleTimeUtcMinutes: scheduleType === 'RECURRING' ? timeUtcMinutes : null,
         imageUrl,
@@ -372,6 +380,7 @@ function CreateCompositeActivityForm({
   currencyAbbr: string;
 }) {
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
   const [name, setName] = useState('');
   const [brcValue, setBrcValue] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -385,6 +394,7 @@ function CreateCompositeActivityForm({
       setName('');
       setBrcValue(0);
       setSelected(new Set());
+      setExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['activities'] });
     },
   });
@@ -400,6 +410,14 @@ function CreateCompositeActivityForm({
     e.preventDefault();
     if (!name.trim() || selected.size === 0) return;
     mutation.mutate();
+  }
+
+  if (!expanded) {
+    return (
+      <button type="button" onClick={() => setExpanded(true)}>
+        + Criar atividade composta
+      </button>
+    );
   }
 
   return (
@@ -425,6 +443,9 @@ function CreateCompositeActivityForm({
       </div>
       <button type="submit" disabled={mutation.isPending || !name.trim() || selected.size === 0}>
         Criar atividade composta
+      </button>{' '}
+      <button type="button" onClick={() => setExpanded(false)}>
+        Cancelar
       </button>
     </form>
   );

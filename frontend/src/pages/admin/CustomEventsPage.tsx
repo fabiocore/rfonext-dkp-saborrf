@@ -12,7 +12,7 @@ import {
 import { ImageUploadInput } from '../../components/ImageUploadInput';
 import { CalendarIcon } from '../../components/CalendarIcon';
 import { ScheduleEditor, WEEKDAY_LABELS } from './ActivitiesPage';
-import { formatRecurringSchedule, localWeekdaysAndTimeToUtc } from '../../utils/scheduleTimezone';
+import { formatRecurringSchedule, localDatetimeInputToUtcIso, localWeekdaysAndTimeToUtc } from '../../utils/scheduleTimezone';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -45,7 +45,8 @@ function CreateEventForm({ currencyAbbr }: { currencyAbbr: string }) {
         brcValue,
         showOnEventsPanel: true,
         scheduleType,
-        scheduleOneTimeAt: scheduleType === 'ONE_TIME' ? scheduleOneTimeAt || undefined : undefined,
+        scheduleOneTimeAt:
+          scheduleType === 'ONE_TIME' && scheduleOneTimeAt ? localDatetimeInputToUtcIso(scheduleOneTimeAt) : undefined,
         scheduleWeekdaysUtc: scheduleType === 'RECURRING' ? weekdaysUtc : [],
         scheduleTimeUtcMinutes: scheduleType === 'RECURRING' ? timeUtcMinutes ?? undefined : undefined,
         imageUrl: imageUrl ?? undefined,

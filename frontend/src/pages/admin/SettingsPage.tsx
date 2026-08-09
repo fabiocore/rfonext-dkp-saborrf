@@ -37,18 +37,18 @@ function WeeklyTaxManualTrigger({
       queryClient.invalidateQueries({ queryKey: ['balances'] });
       queryClient.invalidateQueries({ queryKey: ['public-feed'] });
     },
-    onError: (err: any) => setError(err?.response?.data?.message ?? 'Falha ao rodar o corte semanal.'),
+    onError: (err: any) => setError(err?.response?.data?.message ?? 'Falha ao rodar o imposto semanal.'),
   });
 
   const lastRun = runsQuery.data?.[0];
 
   function handleRunNow() {
     const reason = prompt(
-      `Motivo pra rodar o corte semanal agora, fora do horário automático (obrigatório):`,
+      `Motivo pra rodar o imposto semanal agora, fora do horário automático (obrigatório):`,
     );
     if (!reason?.trim()) return;
     const confirmed = confirm(
-      `Confirma rodar o corte semanal agora? Isso vai queimar ${percent}% do saldo disponível de todos os Principais imediatamente — não é o horário automático (${weekdayLabel}, ${timeLabel}).\n\nMotivo: ${reason.trim()}`,
+      `Confirma rodar o imposto semanal agora? Isso vai queimar ${percent}% do saldo disponível de todos os Principais imediatamente — não é o horário automático (${weekdayLabel}, ${timeLabel}).\n\nMotivo: ${reason.trim()}`,
     );
     if (!confirmed) return;
     setError(null);
@@ -57,10 +57,10 @@ function WeeklyTaxManualTrigger({
 
   return (
     <>
-      <h3>Corte semanal manual</h3>
+      <h3>Imposto semanal manual</h3>
       <p className="subtitle">
         Só o GM pode rodar fora do horário automático — sempre com motivo obrigatório e confirmação, ex: pra recuperar
-        uma semana em que o corte automático não rodou (servidor fora do ar no horário, etc).
+        uma semana em que o imposto automático não rodou (servidor fora do ar no horário, etc).
       </p>
       {lastRun && (
         <p className="subtitle">
@@ -71,7 +71,7 @@ function WeeklyTaxManualTrigger({
         </p>
       )}
       <button type="button" onClick={handleRunNow} disabled={mutation.isPending}>
-        Rodar corte semanal agora
+        Rodar imposto semanal agora
       </button>
       {error && <p className="form-error">{error}</p>}
 
@@ -244,7 +244,7 @@ export function SettingsPage() {
           </select>
         </label>
         <label>
-          Horário do corte semanal (seu fuso)
+          Horário de cobrança do imposto semanal (seu fuso)
           <input type="time" value={weeklyTaxTimeLocal} onChange={(e) => setWeeklyTaxTimeLocal(e.target.value)} />
         </label>
 
