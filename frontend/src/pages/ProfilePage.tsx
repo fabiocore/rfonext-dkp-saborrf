@@ -197,6 +197,8 @@ export function ProfilePage() {
             {character.level ? t('profile.levelCurrent', { level: character.level }) : t('profile.levelNoLevel')}
           </p>
 
+          {levelSuccess && <p className="form-success">{t('profile.levelSubmitted')}</p>}
+
           {pendingRequest ? (
             <p className="subtitle">
               {t('profile.levelPending', {
@@ -229,7 +231,6 @@ export function ProfilePage() {
                   />
                 </label>
                 {levelError && <p className="form-error">{levelError}</p>}
-                {levelSuccess && <p className="form-success">{t('profile.levelSubmitted')}</p>}
                 <button type="submit" disabled={levelMutation.isPending || !requestedLevel || !proofFile}>
                   {t('profile.levelSubmit')}
                 </button>
