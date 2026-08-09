@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -63,5 +63,26 @@ export class AuthService implements OnModuleInit {
       accessToken,
       user: { id: user.id, username: user.username, role: user.role },
     };
+  }
+
+  /**
+   * Troca de senha self-service — funciona pra GM e conselho, já que os dois
+   * fazem login com usuário/senha. Diferente do "reset" de conselho (que só
+   * o GM faz, pra quando o conselheiro esqueceu a senha): aqui é a própria
+   * pessoa, já logada, confirmando a senha atual que ela lembra.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado.');
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Senha atual incorreta.');
+
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('A nova senha precisa ter pelo menos 8 caracteres.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }
 }

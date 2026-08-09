@@ -17,6 +17,7 @@ import { ActivitiesPage } from './pages/admin/ActivitiesPage';
 import { ProtectionsPage } from './pages/admin/ProtectionsPage';
 import { CouncilUsersPage } from './pages/admin/CouncilUsersPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { ChangePasswordPage } from './pages/admin/ChangePasswordPage';
 import { AuctionsListPage } from './pages/admin/AuctionsListPage';
 import { AuctionBuilderPage } from './pages/admin/AuctionBuilderPage';
 import { CustomEventsPage } from './pages/admin/CustomEventsPage';
@@ -60,6 +61,7 @@ function App() {
           <Route path="custom-events" element={<CustomEventsPage />} />
           <Route path="ledger/transfer" element={<TransferPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="change-password" element={<ChangePasswordPage />} />
           <Route element={<ProtectedRoute gmOnly />}>
             <Route path="council" element={<CouncilUsersPage />} />
             <Route path="ledger/manual-adjustment" element={<ManualAdjustmentPage />} />

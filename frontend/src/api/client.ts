@@ -22,10 +22,15 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Endpoints onde 401 significa "credencial errada" (login/troca de senha),
+// não "sua sessão expirou" — não deve disparar o logout automático.
+const AUTH_ENDPOINTS_WITH_OWN_401 = ['/auth/login', '/auth/change-password'];
+
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401 && onUnauthorized) {
+    const isAuthEndpoint = AUTH_ENDPOINTS_WITH_OWN_401.some((path) => error?.config?.url?.includes(path));
+    if (error?.response?.status === 401 && onUnauthorized && !isAuthEndpoint) {
       onUnauthorized();
     }
     return Promise.reject(error);
@@ -137,6 +142,10 @@ export async function login(username: string, password: string) {
     { username, password },
   );
   return data;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/change-password', { currentPassword, newPassword });
 }
 
 export async function fetchGuildSettings(): Promise<GuildSettings> {

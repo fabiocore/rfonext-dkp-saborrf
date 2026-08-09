@@ -49,6 +49,7 @@ export function AdminLayout() {
             {user?.role === 'GM' && <NavLink to="/admin/council">Conselho</NavLink>}
             <NavLink to="/admin/settings">Configurações</NavLink>
             {user?.role === 'GM' && <NavLink to="/admin/backup">Backup</NavLink>}
+            <NavLink to="/admin/change-password">Minha Senha</NavLink>
           </div>
         </nav>
         <main className="admin-content">

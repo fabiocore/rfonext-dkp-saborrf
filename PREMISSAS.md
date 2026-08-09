@@ -132,6 +132,7 @@
 - **Membros comuns**: sem login tradicional. Acessam o sistema apenas via:
   - Código pessoal de leilão (para ofertar, até a data/hora de término daquele leilão específico).
   - Páginas totalmente públicas, sem login algum (seção 9).
+- **Troca de senha self-service** (`/admin/change-password`, adicionado em 2026-08-09): tanto GM quanto Conselho podem trocar a própria senha a qualquer momento, exigindo a senha atual (mín. 8 caracteres pra nova senha). Diferente do "sem self-service de reset" do Conselho acima — reset é pra quando esqueceu a senha (só o GM faz, gerando uma nova aleatória); troca é a própria pessoa, já logada, sabendo a senha atual.
 
 ## 9. Transparência pública (sem necessidade de login)
 

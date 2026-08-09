@@ -4,6 +4,17 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Troca de senha self-service (GM e Conselho)
+
+**Contexto**: até agora não existia nenhuma forma de trocar a própria senha logado — a única opção documentada no `DEPLOY.md` era recriar a conta de GM direto no banco. Pedido explícito pra resolver isso.
+
+**Backend**: `AuthService.changePassword(userId, currentPassword, newPassword)` — confere a senha atual via bcrypt antes de aceitar a troca (`401` se errada), exige mínimo de 8 caracteres na nova (`400` se curta). Novo endpoint `POST /auth/change-password`, autenticado (funciona pra GM e Conselho, já que os dois logam com usuário/senha) — não precisa de `@Roles`, é sempre sobre o próprio usuário logado (via `@CurrentUser()`), nunca sobre outra conta.
+
+**Frontend**: nova página `/admin/change-password` ("Minha Senha", link no grupo "Sistema" do menu, visível pros dois papéis), formulário com senha atual + nova + confirmação, validação de que as duas novas batem antes de enviar.
+
+**Bug real pego durante o teste manual**: o interceptor global do axios tratava *qualquer* `401` como "sessão expirada" e deslogava o usuário automaticamente — inclusive o `401` de "senha atual incorreta", que é uma resposta esperada da própria troca de senha, não uma sessão inválida. Resultado: errar a senha atual uma vez te chutava pra tela de login. Corrigido excluindo `/auth/login` e `/auth/change-password` desse comportamento automático (client.ts) — esses dois endpoints tratam o próprio `401` inline, sem precisar do logout global.
+
+**Testado ao vivo**: via curl (senha atual errada → `401` com mensagem clara; nova senha curta → `400`; troca válida → sucesso, login com senha antiga passa a falhar e com a nova funciona) e na UI (mesma sequência, incluindo confirmar que o bug do logout automático sumiu depois do fix). Senha do GM de dev revertida ao valor padrão ao final do teste.
 ## 2026-08-09 — Deploy em produção via Dokploy: ambiente dev criado e validado, script de deploy reutilizável
 
 **Contexto**: pedido de preparação pra produção — usar Dokploy (self-hosted em `rfonext-dkp.cloud`), com ambiente dev e prod separados por guild, cada deploy novo começando zerado, e um script reaproveitável pra futuras guilds (intenção white-label). Instrução explícita do usuário: criar só o `dev` primeiro pra validação, prod só depois de aprovação.
