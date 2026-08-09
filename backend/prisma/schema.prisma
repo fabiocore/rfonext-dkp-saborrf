@@ -65,6 +65,15 @@ model User {
   lastLoginAt   DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  // Código de recuperação opcional (2026-08-09) — segredo secundário que a
+  // própria pessoa define enquanto logada, pra recuperar acesso sozinha se
+  // esquecer a senha e não conseguir logar. Reutilizável (não expira/consome
+  // no uso), guardado só como hash, nunca em texto puro. Alternativa mais
+  // pesada (reset via servidor/Dokploy) continua existindo pro GM em
+  // backend/src/scripts/reset-gm-password.ts.
+  recoveryCodeHash      String?
+  recoveryCodeUpdatedAt DateTime?
 }
 
 enum CharacterStatus {

@@ -24,7 +24,7 @@ apiClient.interceptors.request.use((config) => {
 
 // Endpoints onde 401 significa "credencial errada" (login/troca de senha),
 // não "sua sessão expirou" — não deve disparar o logout automático.
-const AUTH_ENDPOINTS_WITH_OWN_401 = ['/auth/login', '/auth/change-password'];
+const AUTH_ENDPOINTS_WITH_OWN_401 = ['/auth/login', '/auth/change-password', '/auth/recover-password'];
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -151,6 +151,24 @@ export async function login(username: string, password: string) {
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   await apiClient.post('/auth/change-password', { currentPassword, newPassword });
+}
+
+export interface RecoveryCodeStatus {
+  isSet: boolean;
+  updatedAt: string | null;
+}
+
+export async function fetchRecoveryCodeStatus(): Promise<RecoveryCodeStatus> {
+  const { data } = await apiClient.get<RecoveryCodeStatus>('/auth/recovery-code');
+  return data;
+}
+
+export async function setRecoveryCode(currentPassword: string, recoveryCode: string): Promise<void> {
+  await apiClient.post('/auth/recovery-code', { currentPassword, recoveryCode });
+}
+
+export async function recoverPassword(username: string, recoveryCode: string, newPassword: string): Promise<void> {
+  await apiClient.post('/auth/recover-password', { username, recoveryCode, newPassword });
 }
 
 export async function fetchGuildSettings(): Promise<GuildSettings> {

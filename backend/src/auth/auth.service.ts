@@ -85,4 +85,57 @@ export class AuthService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
   }
+
+  /**
+   * Define/troca o código de recuperação — segredo secundário reutilizável
+   * (não é consumido no uso) que a pessoa usa pra recuperar acesso sozinha
+   * se esquecer a senha. Exige a senha atual pra evitar que alguém com a
+   * sessão aberta troque o código sem a pessoa saber.
+   */
+  async setRecoveryCode(userId: string, currentPassword: string, recoveryCode: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado.');
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new UnauthorizedException('Senha atual incorreta.');
+
+    if (!recoveryCode || recoveryCode.length < 10) {
+      throw new BadRequestException('O código de recuperação precisa ter pelo menos 10 caracteres.');
+    }
+
+    const recoveryCodeHash = await bcrypt.hash(recoveryCode, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { recoveryCodeHash, recoveryCodeUpdatedAt: new Date() },
+    });
+  }
+
+  async getRecoveryCodeStatus(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado.');
+    return { isSet: !!user.recoveryCodeHash, updatedAt: user.recoveryCodeUpdatedAt };
+  }
+
+  /**
+   * Recuperação de senha pública (sem login) — troca a senha de quem souber
+   * usuário + código de recuperação previamente definido. Erro genérico em
+   * qualquer ponto de falha (usuário inexistente, sem código definido, ou
+   * código errado) pra não revelar qual parte está errada.
+   */
+  async recoverPassword(username: string, recoveryCode: string, newPassword: string) {
+    const genericError = new UnauthorizedException('Usuário ou código de recuperação inválidos.');
+
+    const user = await this.prisma.user.findUnique({ where: { username } });
+    if (!user || !user.recoveryCodeHash) throw genericError;
+
+    const validCode = await bcrypt.compare(recoveryCode, user.recoveryCodeHash);
+    if (!validCode) throw genericError;
+
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('A nova senha precisa ter pelo menos 8 caracteres.');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+  }
 }

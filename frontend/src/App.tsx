@@ -9,6 +9,7 @@ import { PlayerAuctionPage } from './pages/PlayerAuctionPage';
 import { ProfileCodeEntryPage } from './pages/ProfileCodeEntryPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/admin/LoginPage';
+import { RecoverPasswordPage } from './pages/admin/RecoverPasswordPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { ImportsPage } from './pages/admin/ImportsPage';
 import { CharactersPage } from './pages/admin/CharactersPage';
@@ -45,6 +46,7 @@ function App() {
       <Route path="/perfil/:code" element={<ProfilePage />} />
 
       <Route path="/admin/login" element={<LoginPage />} />
+      <Route path="/admin/recuperar-senha" element={<RecoverPasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<AdminLayout />}>

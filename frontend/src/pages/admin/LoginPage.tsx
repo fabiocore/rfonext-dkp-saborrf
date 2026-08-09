@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 
 export function LoginPage() {
@@ -50,6 +50,9 @@ export function LoginPage() {
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Entrando...' : 'Entrar'}
         </button>
+        <p className="subtitle" style={{ marginTop: 12 }}>
+          <Link to="/admin/recuperar-senha">Esqueci minha senha</Link>
+        </p>
       </form>
     </div>
   );
