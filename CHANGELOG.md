@@ -4,6 +4,14 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Primeiro deploy de produção
+
+**Ambiente `production` criado no Dokploy** (projeto `saborrf`, ambiente já existia vazio desde a criação do projeto — nunca configurado até agora): `https://sabor.rfonext-dkp.cloud`, com banco/segredos/domínio totalmente novos e independentes do `dev` (nenhum dado de teste migrado — nasce zerado, por design, PREMISSAS.md seção 10). `GM_BOOTSTRAP_PASSWORD` gerado e anotado na hora da criação.
+
+Confirmado ao vivo: home (200), `/admin/login` (200), `/api/public/balances` retornando lista vazia (esperado — ambiente novo, sem import ainda). Tag `deployed/prod` criada apontando pro mesmo commit de `deployed/dev` — nada pendente de promoção no momento da criação.
+
+**Pendente pro GM**: entrar em `https://sabor.rfonext-dkp.cloud/admin/login` com `guildmaster`/senha gerada, trocar a senha imediatamente (Minha Senha), definir um código de recuperação, preencher Configurações (nome da guild, moeda, imposto semanal), criar contas de conselho, e importar o primeiro XML — mesmos passos de "primeiro deploy de uma guild nova" (DEPLOY.md seção 2, passos 4-7), já que produção é um ambiente novo, não uma cópia do dev.
+
 ## 2026-08-09 — Versionamento dev/prod: tags git móveis + script de redeploy de rotina
 
 **Pedido**: usuário percebeu que não existe hoje nenhuma forma de saber "o que já está validado no dev mas ainda não foi promovido pra produção" — problema real, já que tanto o app `dev` quanto o futuro `production` no Dokploy apontam pro mesmo branch `main`, e cada deploy é disparado manualmente por ambiente, sem vínculo com o `git push`.
