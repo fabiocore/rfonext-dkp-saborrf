@@ -4,6 +4,15 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Tradução de conteúdo (Avisos etc.): avaliado e descartado; fix de `lang` pro navegador sugerir tradução
+
+**Contexto**: usuário perguntou se dava pra traduzir automaticamente o que ele escreve (Mural, Aviso Fixo, Eventos) pra EN/ES, já que o seletor de idioma hoje só troca a interface, nunca o conteúdo livre (sempre em pt-BR). Apresentei as opções (tradução automática ao salvar, botão de tradução com revisão, campos manuais, ou deixar o navegador sugerir) e os provedores possíveis (DeepL, Google Cloud Translation, Azure Translator, IA). Usuário decidiu **não** integrar nenhum serviço externo — não quer criar cadastro em mais site nenhum — e optou por só facilitar a sugestão nativa de tradução do navegador (ex: "Traduzir esta página?" do Chrome).
+
+**Fix real encontrado nesse meio-tempo**: `frontend/index.html` tinha `<html lang="en">` **fixo**, herdado do scaffold original do Vite e nunca corrigido — mesmo com a página inteira (interface + conteúdo) em português na maior parte do tempo. Isso atrapalha a detecção de idioma do navegador (um dos sinais que ele usa pra decidir se oferece tradução). Corrigido:
+- `index.html`: valor estático inicial trocado pra `lang="pt-BR"` (reflete a realidade — é o idioma padrão/majoritário do site).
+- `frontend/src/i18n/index.ts`: novo listener `i18n.on('languageChanged', ...)` mantém `document.documentElement.lang` sincronizado com o idioma da interface escolhido no seletor PT/EN/ES, em tempo real — útil principalmente pra quando o visitante troca pra EN/ES mas o conteúdo livre (Avisos etc.) continua em português, ajudando o navegador a notar a mistura e sugerir tradução.
+
+**Testado ao vivo**: confirmei via console do navegador que `document.documentElement.lang` começa `"pt-BR"` e muda pra `"en"` na hora ao clicar o seletor de idioma, sem reload.
 ## 2026-08-09 — Remoção total da fila de aprovação de nível + bug real na lista de participantes de leilão
 
 **Contexto**: dois problemas reportados na mesma mensagem.

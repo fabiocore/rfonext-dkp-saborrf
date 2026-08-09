@@ -22,4 +22,17 @@ i18n
     },
   });
 
+// Mantém <html lang="..."> em dia com o idioma da interface (era fixo em
+// "en" no index.html, herdado do scaffold do Vite, mesmo quando a página
+// era toda em português). Isso ajuda o navegador a sugerir tradução
+// automática sozinho (ex: "Traduzir esta página?" do Chrome) quando o
+// conteúdo livre digitado pelo GM/conselho (Avisos etc. — sempre em pt-BR,
+// nunca traduzido pelo sistema) não bate com o idioma da interface
+// escolhido pelo visitante.
+function syncHtmlLang() {
+  document.documentElement.lang = i18n.resolvedLanguage ?? i18n.language;
+}
+i18n.on('languageChanged', syncHtmlLang);
+syncHtmlLang();
+
 export default i18n;
