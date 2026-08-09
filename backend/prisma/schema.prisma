@@ -1,0 +1,468 @@
+// RFONext DKP — schema de dados
+// Ver PREMISSAS.md na raiz do projeto para as regras de negócio por trás de cada modelo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Configuração da guild (linha única) — tudo que muda de guild pra guild vive
+// aqui, nunca hardcoded no código (PREMISSAS.md seção 10).
+// ---------------------------------------------------------------------------
+model GuildSettings {
+  id               Int      @id @default(1)
+  guildName        String
+  currencyName     String   @default("Bear Coins")
+  currencyAbbr     String   @default("BRC")
+  defaultLocale    String   @default("pt-BR")
+  weeklyTaxPercent Int      @default(10) // 1-20, validado na aplicação
+  weeklyTaxWeekday Int      @default(1) // 0=domingo .. 6=sábado, em UTC (padrão: segunda)
+  weeklyTaxTimeUtcMinutes Int @default(300) // minutos desde 00:00 UTC (padrão: 300 = 05:00 UTC) — mesma convenção de Activity.scheduleTimeUtcMinutes
+  defaultMinBid    Int      @default(10) // lance mínimo pra item SEM proteção ("Mínimo de 10 BRC por item sem PCE")
+  logoUrl          String?
+  pinnedAnnouncementText String? // aviso fixo em destaque na home pública, separado do Mural — só o GM edita (nunca o Conselho)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+// Mural de avisos da home pública — chamadas pra eventos, mudanças de regra,
+// pedidos etc. Fica fixo até o GM/conselho editar ou remover (não expira
+// sozinho). Escrita só GM/Conselho, leitura pública sem login.
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  body        String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum UserRole {
+  GM
+  COUNCIL
+}
+
+// Contas de GM/Conselho. Membros comuns NÃO têm conta (acessam só via código
+// de leilão ou páginas públicas) — ver PREMISSAS.md seção 8.
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  passwordHash  String
+  role          UserRole
+  isActive      Boolean   @default(true)
+  createdById   String?
+  createdBy     User?     @relation("UserCreatedBy", fields: [createdById], references: [id])
+  createdUsers  User[]    @relation("UserCreatedBy")
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum CharacterStatus {
+  PRINCIPAL
+  ALT
+  ALT_ONLY
+}
+
+// Status de interação com a guild.
+// ACTIVE/UNKNOWN NÃO são derivados automaticamente da presença no arquivo do
+// jogo (ter checkmark de atividade não prova interação real com os membros)
+// — só é setado automaticamente pra ACTIVE na primeira vez que o personagem
+// aparece; depois disso só GM/conselho alterna entre ACTIVE e UNKNOWN.
+// LEFT é diferente: é 100% automático e reflete um fato objetivo — o
+// personagem não consta mais no XML mais recente importado (saiu da guild
+// no jogo). Cada import: quem não aparece no arquivo novo vira LEFT
+// (sobrescrevendo ACTIVE ou UNKNOWN); quem estava LEFT e reaparece volta pra
+// ACTIVE sozinho. Nenhum dos três estados que não seja ACTIVE recebe BRC ou
+// participa de leilão novo (ver LedgerService).
+enum MembershipStatus {
+  ACTIVE // Ativo na Guild
+  UNKNOWN // Desconhecido
+  LEFT // Saiu
+}
+
+// Roster vem sempre dos XMLs importados (PREMISSAS.md seção 3).
+model Character {
+  id                 String    @id @default(uuid())
+  gameName           String    @unique
+  status             CharacterStatus @default(PRINCIPAL)
+  linkedPrincipalId  String?
+  linkedPrincipal    Character?  @relation("AltToPrincipal", fields: [linkedPrincipalId], references: [id])
+  alts               Character[] @relation("AltToPrincipal")
+  level              Int?
+  membershipStatus   MembershipStatus @default(ACTIVE)
+  firstSeenAt        DateTime  @default(now())
+  lastSeenAt         DateTime  @default(now())
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Perfil self-service do membro (PREMISSAS.md seção 3) — código de 12
+  // caracteres, gerado automaticamente pra todo Principal, distribuído
+  // manualmente pelo GM/conselho (mesmo padrão do código de leilão).
+  discordId          String?
+  avatarUrl          String?
+  profileAccessCode  String?   @unique
+
+  ledgerTransactions LedgerTransaction[]
+  activityCheckIns   ActivityCheckIn[]
+  auctionParticipations AuctionParticipant[]
+  bids               Bid[]
+  auctionWithdrawals AuctionItemWithdrawal[]
+  levelChangeRequests LevelChangeRequest[]
+
+  @@index([status, membershipStatus])
+}
+
+enum LevelChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Pedido de atualização de nível feito pelo próprio membro via /perfil —
+// nunca aplica na hora (nível decide elegibilidade em item de leilão com
+// Proteção, então precisa de revisão do GM/conselho antes de valer). Print
+// de comprovação sempre obrigatório.
+model LevelChangeRequest {
+  id             String   @id @default(uuid())
+  characterId    String
+  character      Character @relation(fields: [characterId], references: [id])
+  requestedLevel Int
+  proofImageUrl  String
+  status         LevelChangeRequestStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  rejectReason   String?
+  createdAt      DateTime @default(now())
+
+  @@index([characterId])
+  @@index([status])
+}
+
+enum ActivitySourceType {
+  XML_COLUMN
+  MANUAL
+}
+
+enum ActivityScheduleType {
+  NONE
+  ONE_TIME
+  RECURRING
+}
+
+// Janela de reset da atividade, sempre às 07h GMT-3 (regra fixa do jogo,
+// confirmada pelo GM — não configurável por atividade):
+// - DAILY: reseta todo dia. Verificado/Doar/Atividade da Guilda.
+// - WEEKLY: reseta toda segunda-feira. A maioria das outras atividades.
+// - MONTHLY: reseta no dia 1º de cada mês.
+// `Activity.maxOccurrencesPerPeriod` (só relevante pra WEEKLY/MONTHLY, já
+// que DAILY já tem o dia como unidade natural) define quantas vezes dentro
+// do período ela pode pagar — 1 pro caso comum (Raid de Guilda etc.), 2/3
+// pra atividades futuras que aconteçam mais de uma vez no mesmo período.
+enum ActivityRecurrencePeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+// Catálogo de atividades/eventos (PREMISSAS.md seção 5). Nome travado quando
+// vem de uma coluna do XML; valor em BRC sempre editável.
+model Activity {
+  id                   String   @id @default(uuid())
+  name                 String   @unique
+  brcValue             Int      @default(0)
+  sourceType           ActivitySourceType @default(MANUAL)
+  isNameLocked         Boolean  @default(false)
+  isComposite          Boolean  @default(false)
+  recurrencePeriod     ActivityRecurrencePeriod @default(DAILY)
+  maxOccurrencesPerPeriod Int   @default(1) // só relevante pra WEEKLY/MONTHLY
+  isActive             Boolean  @default(true)
+  showOnEventsPanel    Boolean  @default(false)
+  scheduleType         ActivityScheduleType @default(NONE)
+  scheduleOneTimeAt    DateTime?
+  // Recorrência semanal, sempre em UTC (0=domingo..6=sábado, mesma convenção
+  // de GuildSettings.weeklyTaxWeekday). O frontend converte de/pra fuso do
+  // navegador na entrada (admin) e na exibição (visitante) — ver
+  // frontend/src/utils/scheduleTimezone.ts.
+  scheduleWeekdaysUtc  Int[]    @default([])
+  scheduleTimeUtcMinutes Int?
+  imageUrl             String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  componentsOf         ActivityComponent[] @relation("CompositeActivity")
+  componentOfOthers    ActivityComponent[] @relation("ComponentActivity")
+  checkIns             ActivityCheckIn[]
+  ledgerTransactions   LedgerTransaction[]
+  manualEventBatches   ManualEventBatch[]
+}
+
+// Liga uma Activity composta (ex: "Diária") às Activities-coluna que
+// precisam estar TODAS marcadas no mesmo dia pra emitir BRC.
+model ActivityComponent {
+  id                   String   @id @default(uuid())
+  compositeActivityId  String
+  compositeActivity    Activity @relation("CompositeActivity", fields: [compositeActivityId], references: [id])
+  componentActivityId  String
+  componentActivity    Activity @relation("ComponentActivity", fields: [componentActivityId], references: [id])
+
+  @@unique([compositeActivityId, componentActivityId])
+}
+
+enum ImportStatus {
+  PROCESSED
+  FAILED
+}
+
+// Um registro por arquivo XML importado. Dedup por fileName exato
+// (padrão AAAAMMDD_HHMMSS_NomeDaGuild.xml).
+model ImportBatch {
+  id                     String   @id @default(uuid())
+  fileName               String   @unique
+  referenceDate          DateTime @db.Date
+  uploadedById           String?
+  status                 ImportStatus @default(PROCESSED)
+  rowCount               Int      @default(0)
+  newCharactersDetected  Int      @default(0)
+  newActivitiesDetected  Int      @default(0)
+  errorDetail            String?
+  uploadedAt             DateTime @default(now())
+
+  checkIns               ActivityCheckIn[]
+}
+
+// Fato bruto por (personagem, atividade, dia) — base para avaliar atividades
+// compostas e para auditoria. Upsert em reimportação do mesmo dia.
+model ActivityCheckIn {
+  id             String   @id @default(uuid())
+  characterId    String
+  character      Character @relation(fields: [characterId], references: [id])
+  activityId     String
+  activity       Activity @relation(fields: [activityId], references: [id])
+  referenceDate  DateTime @db.Date
+  checked        Boolean
+  importBatchId  String
+  importBatch    ImportBatch @relation(fields: [importBatchId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([characterId, activityId, referenceDate])
+}
+
+enum LedgerTransactionType {
+  ACTIVITY_EMISSION
+  MANUAL_EVENT_EMISSION
+  AUCTION_WIN_BURN
+  TRANSFER_OUT
+  TRANSFER_IN
+  WEEKLY_TAX_BURN
+  GM_MANUAL_ADJUSTMENT
+  AUCTION_WIN_REVERSAL
+}
+
+// Extrato/ledger — única fonte de saldo (PREMISSAS.md seção 4). O saldo de
+// um personagem é SEMPRE a soma de suas transações, nunca um campo mutável.
+model LedgerTransaction {
+  id                  String   @id @default(uuid())
+  characterId         String
+  character           Character @relation(fields: [characterId], references: [id])
+  amount              Int      // positivo = crédito (emissão), negativo = débito (queima)
+  type                LedgerTransactionType
+  reasonText          String?
+  proofImageUrl       String?
+  createdById         String?
+
+  sourceActivityId    String?
+  sourceActivity      Activity? @relation(fields: [sourceActivityId], references: [id])
+  sourceReferenceDate DateTime? @db.Date
+
+  manualEventBatchId  String?
+  manualEventBatch    ManualEventBatch? @relation(fields: [manualEventBatchId], references: [id])
+
+  auctionItemId       String?
+  auctionItem         AuctionItem? @relation(fields: [auctionItemId], references: [id])
+
+  transferGroupId     String?
+
+  weeklyTaxRunId      String?
+  weeklyTaxRun        WeeklyTaxRun? @relation(fields: [weeklyTaxRunId], references: [id])
+
+  createdAt           DateTime @default(now())
+
+  @@index([characterId])
+  @@index([type])
+  @@index([transferGroupId])
+}
+
+// Evento manual com print — credita o mesmo valor pra vários Principais
+// selecionados manualmente (PREMISSAS.md seção 5/7 "novas features").
+// activityId é opcional: liga a emissão a um "Evento Personalizado" (Activity
+// MANUAL simples, criado/agendado na tela Eventos Personalizados) pra manter
+// o título e o valor consistentes com o que foi divulgado no site; pode
+// ficar nulo pra bônus avulsos sem evento formal cadastrado.
+// occurrenceDate identifica QUAL ocorrência de um evento recorrente está
+// sendo paga (ex: a quarta-feira 12/08) — o par (activityId, occurrenceDate)
+// é único pra impedir pagar a mesma ocorrência duas vezes por engano.
+model ManualEventBatch {
+  id             String    @id @default(uuid())
+  activityId     String?
+  activity       Activity? @relation(fields: [activityId], references: [id])
+  occurrenceDate DateTime? @db.Date
+  title          String
+  brcValueEach   Int
+  proofImageUrl  String
+  createdById    String
+  createdAt      DateTime  @default(now())
+
+  transactions   LedgerTransaction[]
+
+  @@unique([activityId, occurrenceDate])
+}
+
+// Um registro por execução do corte semanal (imposto automático).
+model WeeklyTaxRun {
+  id                    String   @id @default(uuid())
+  runDate               DateTime @default(now())
+  percentApplied        Int
+  executedAt            DateTime @default(now())
+  totalCharactersTaxed  Int      @default(0)
+  totalAmountBurned     Int      @default(0)
+  triggeredManually     Boolean  @default(false)
+  reason                String?
+  triggeredById         String?
+
+  transactions          LedgerTransaction[]
+}
+
+// Catálogo de proteções (PCE) — PREMISSAS.md seção 6.
+model Protection {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  minBid      Int
+  minLevel    Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  auctionItems AuctionItem[]
+}
+
+enum AuctionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  OPEN
+  CLOSED
+}
+
+// Um leilão = um evento do jogo, com título e vários itens
+// (PREMISSAS.md seção 7). Draft -> aprovação -> publicação (24h).
+// closeReason só é preenchido quando o GM encerra o leilão inteiro antes da
+// expiração natural (24h) — motivo obrigatório nesse caso.
+model Auction {
+  id            String   @id @default(uuid())
+  title         String
+  status        AuctionStatus @default(DRAFT)
+  scheduledEndAt DateTime?
+  publishedAt   DateTime?
+  expiresAt     DateTime?
+  closeReason   String?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         AuctionItem[]
+  participants  AuctionParticipant[]
+  approvals     AuctionApproval[]
+}
+
+// Aprovação de publicação: GM publica direto; conselho precisa de 2
+// aprovações distintas.
+model AuctionApproval {
+  id          String   @id @default(uuid())
+  auctionId   String
+  auction     Auction  @relation(fields: [auctionId], references: [id])
+  userId      String
+  approvedAt  DateTime @default(now())
+
+  @@unique([auctionId, userId])
+}
+
+enum AuctionItemResolutionStatus {
+  PENDING
+  WON
+  UNCLAIMED
+  CANCELLED // GM encerrou o item (ou o leilão inteiro) antes da hora, com motivo obrigatório
+}
+
+model AuctionItem {
+  id                String   @id @default(uuid())
+  auctionId         String
+  auction           Auction  @relation(fields: [auctionId], references: [id])
+  name              String
+  description       String?
+  protectionId      String?
+  protection        Protection? @relation(fields: [protectionId], references: [id])
+  imageUrl          String?
+  winningBidId      String?  @unique
+  winningBid        Bid?     @relation("WinningBid", fields: [winningBidId], references: [id])
+  resolutionStatus  AuctionItemResolutionStatus @default(PENDING)
+  cancelReason      String?
+  diceRollDetail    Json?
+  resolvedAt        DateTime?
+  createdAt         DateTime @default(now())
+
+  bids               Bid[] @relation("ItemBids")
+  withdrawals        AuctionItemWithdrawal[]
+  ledgerTransactions LedgerTransaction[]
+}
+
+// Um jogador desiste de um item específico em que já deu lance — o lance em
+// si nunca é apagado (Bid é append-only), só passa a ser ignorado nos
+// cálculos de líder/hold/vitória. Se restar só 1 concorrente ativo com
+// lance, ele vence na hora; se restar 0, o item vira "Não reclamado".
+model AuctionItemWithdrawal {
+  id            String      @id @default(uuid())
+  auctionItemId String
+  auctionItem   AuctionItem @relation(fields: [auctionItemId], references: [id])
+  characterId   String
+  character     Character   @relation(fields: [characterId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@unique([auctionItemId, characterId])
+}
+
+// Código único por (personagem, leilão) — só gerado pra quem é elegível em
+// pelo menos 1 item (PREMISSAS.md seção 7).
+model AuctionParticipant {
+  id           String    @id @default(uuid())
+  auctionId    String
+  auction      Auction   @relation(fields: [auctionId], references: [id])
+  characterId  String
+  character    Character @relation(fields: [characterId], references: [id])
+  accessCode   String?   @unique
+  createdAt    DateTime  @default(now())
+
+  @@unique([auctionId, characterId])
+}
+
+// Lances — append-only, nunca atualizados/apagados.
+model Bid {
+  id             String   @id @default(uuid())
+  auctionItemId  String
+  auctionItem    AuctionItem @relation("ItemBids", fields: [auctionItemId], references: [id])
+  characterId    String
+  character      Character @relation(fields: [characterId], references: [id])
+  amount         Int
+  placedAt       DateTime @default(now())
+
+  winningForItem AuctionItem? @relation("WinningBid")
+
+  @@index([auctionItemId])
+  @@index([characterId])
+}

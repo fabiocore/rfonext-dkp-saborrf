@@ -1,0 +1,65 @@
+# Compose de produção — pensado pra deploy via Dokploy (ou qualquer host Docker).
+# Cada guild = um deploy independente deste mesmo compose, com seu próprio
+# arquivo .env e domínio (PREMISSAS.md seção 10). Nenhuma porta de banco é
+# exposta publicamente; o Dokploy (ou seu proxy reverso) aponta o domínio da
+# guild pro serviço "web".
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-12h}
+      GM_BOOTSTRAP_USERNAME: ${GM_BOOTSTRAP_USERNAME}
+      GM_BOOTSTRAP_PASSWORD: ${GM_BOOTSTRAP_PASSWORD}
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+  # Opcional — só sobe com `docker compose --profile debug up`. Nunca deixar
+  # ligado permanentemente num deploy público.
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    profiles: ["debug"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
+  uploads:

@@ -1,0 +1,27 @@
+FROM node:20-bookworm-slim
+
+# Prisma precisa do OpenSSL disponível no sistema (node:*-alpine causa erro de engine).
+# postgresql-client-16 (via repositório oficial PGDG, pra bater com a versão
+# major do postgres:16-alpine do docker-compose — um client mais antigo que
+# o servidor faz o pg_dump recusar rodar) é usado pelo backup/restore
+# (backend/src/backup) via pg_dump/psql direto pela rede, sem precisar do
+# socket do Docker.
+RUN apt-get update -y && apt-get install -y openssl curl gnupg lsb-release \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update -y && apt-get install -y postgresql-client-16 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+RUN npx prisma generate
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start:dev"]

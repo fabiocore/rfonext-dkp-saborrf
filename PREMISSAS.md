@@ -1,0 +1,189 @@
+# RFONext DKP — Documento de Premissas
+
+> Este documento é a fonte da verdade das decisões de produto e regras de negócio do projeto.
+> Deve ser consultado antes de qualquer decisão técnica e **atualizado sempre que uma premissa mudar ou uma nova for adicionada** — por qualquer uma das partes (usuário ou Claude).
+
+## 1. Visão geral
+
+- **Nome do produto**: RFONext DKP.
+- **Contexto**: sistema de DKP (Dragon Kill Points / pontuação de participação) para guilds do jogo **RF Online Next**. Nasceu para a guild SaborRF, mas deve ser **agnóstico à guild** — cada nova guild recebe um deploy próprio (não é multi-tenant dentro do mesmo app).
+- **Objetivo**: rastrear participação e contribuição dos membros via uma moeda interna (BRC — Bear Coins, no caso da SaborRF, mas o nome é configurável), e oferecer um sistema de leilão transparente para disputa de itens/skills do jogo usando essa moeda.
+- **Execução hoje**: local, via Docker. Deve estar pronto para publicação na internet (multi-deploy, um domínio por guild).
+- **Fonte de dados de atividade**: arquivos `.xml` (formato Excel XML) exportados manualmente do jogo pelos jogadores/oficiais, contendo checkboxes de participação por personagem e por atividade do dia.
+
+## 2. Regras de negócio (origem: regras de loot da guild)
+
+- Só **personagens Principais** recebem/gastam a moeda. Alt e AltOnly ficam completamente fora do sistema.
+- Atividade **diária composta**: neste momento é Verificado + Doar + Atividade da Guilda — só emite BRC se as três estiverem marcadas no mesmo dia; se faltar uma, o dia vale 0. O sistema deve suportar esse tipo de atividade composta (N colunas do XML precisam estar todas marcadas) de forma genérica, não só para este caso específico.
+- Eventos simples (Raid de Guilda, Expedição da Guilda, Confronto pelo Paraíso, etc.) cada um é uma atividade com valor próprio em BRC.
+- **Não existe teto de ganho semanal travado no sistema.** O quanto um jogador pode ganhar por semana é só a soma natural dos valores de atividades/eventos/emissões manuais configurados — não é uma regra de bloqueio a ser implementada.
+- **Imposto semanal**: percentual configurável entre 1% e 20% (padrão 10%), no **dia e horário** da semana definidos pelo GM (padrão: Segunda-feira, 05:00 UTC) — job roda a cada 5 minutos e só executa de fato quando dia+hora batem com o configurado (GM digita em horário local, convertido pra UTC do mesmo jeito que a agenda recorrente de Atividades). Incide só sobre o saldo **disponível** da carteira — nunca sobre valores retidos em holds de leilões abertos, senão um leilão poderia fechar tentando debitar mais BRC do que sobrou depois do imposto (ver seção 7, "queima nunca deixa saldo negativo").
+  - **Sem saldo suficiente não trava nem deixa negativo**: se o saldo disponível do personagem é 0 (ou o imposto calculado arredonda pra 0), ele simplesmente **não é taxado** aquela semana — pulado silenciosamente, sem gerar transação, sem erro, sem parar o corte dos demais personagens.
+  - **Arredondamento** (corrigido em 2026-08-09): a moeda é sempre inteira, então o valor calculado (ex: 10% de 106 = 10,6) precisa virar um número inteiro. Regra: acima de x,5 arredonda **para cima** (10,6 → 11); em x,5 exato ou abaixo arredonda **para baixo** (10,5 → 10; 10,4 → 10). Calculado com aritmética inteira (sem ponto flutuante) pra nunca errar o lado do arredondamento.
+  - **Corte manual** (adicionado em 2026-08-09): só o **GM** pode disparar o corte semanal fora do horário automático (ex: pra recuperar uma semana em que o servidor esteve fora do ar no horário certo) — sempre com **motivo obrigatório** e uma **confirmação explícita** antes de executar, já que queima o saldo de todos os Principais na hora. Todo corte (automático ou manual) fica registrado com data, percentual aplicado, quantos personagens foram taxados e o total queimado — visível pro GM/conselho nas Configurações, pra decidir com informação se vale rodar de novo.
+  - A queima do imposto semanal aparece no Extrato Público (transparência total, seção 9) — antes só emissões e transferências apareciam lá, sem nenhum registro visível explicando quedas de saldo por imposto.
+- **Leilão**: maior lance leva o item; quem perde não gasta nada; empate resolvido no dado **somente entre os que empataram**; item sem nenhum lance fica registrado como "Não reclamado — será randomizado no jogo" (a distribuição real acontece dentro do próprio jogo, fora do sistema). Lance mínimo em item **sem** proteção: valor configurável em Configurações da Guild (`defaultMinBid`, padrão 10 BRC) — regra original: "mínimo de 10 BRC por item sem PCE".
+- **Proteções (PCE)**: cada proteção define um lance mínimo e um nível mínimo de personagem exigido para poder ofertar num item daquela categoria. O catálogo de proteções é totalmente editável (ver seção 6).
+
+## 3. Personagens e membros
+
+- A lista de personagens vem sempre dos arquivos XML importados.
+- Status de papel de cada personagem (editável por GM/conselho):
+  - **Principal** — participa normalmente do sistema.
+  - **Alt** — vinculado a um Principal específico; não recebe BRC, não recebe código de leilão, não acessa o sistema de forma alguma.
+  - **AltOnly** — personagem cujo dono só tem esse personagem alt na guild (sem Principal correspondente cadastrado); mesmas restrições do Alt.
+- Campo **`level`** (nível do personagem) é editável, e existe **somente para Principal** — é o único atributo usado para checar elegibilidade de lance em itens protegidos.
+- **Status de interação com a guild** (`membershipStatus`), separado do status de papel acima — corrigido em 2026-08-09 depois de ficar claro que ter check nas atividades do jogo **não prova interação real** com os membros; e novamente em 2026-08-09 pra distinguir "ausente do roster" (fato objetivo) de "presente mas sem interação real" (julgamento manual):
+  - **Ativo na Guild** — padrão. Setado automaticamente só na primeira vez que o personagem aparece num import.
+  - **Desconhecido** — só GM/conselho define manualmente. Personagem continua aparecendo nos imports, mas não interage de verdade com os membros. **Nunca** setado/removido automaticamente pelo sistema.
+  - **Saiu** — 100% automático, ao contrário dos outros dois. A lista válida de personagens é sempre a do **último XML importado**: todo import compara o roster novo com o banco e marca como "Saiu" qualquer personagem que já existia mas não consta no arquivo mais recente (sobrescrevendo tanto "Ativo na Guild" quanto "Desconhecido" — ausência do arquivo é mais forte que julgamento manual anterior). Se esse personagem reaparecer num import futuro, volta pra "Ativo na Guild" sozinho, sem ação manual.
+  - Qualquer status diferente de "Ativo na Guild" **para de receber BRC** e **para de poder ser marcado como participante de leilão novo**. O saldo/histórico que o personagem já tinha continua intacto e visível pra sempre — inclusive na tela admin de Personagens, que mostra uma coluna de Saldo justamente pra permitir consultar quanto alguém tinha quando saiu.
+  - `lastSeenAt` (a última vez visto num import) continua existindo como dado informativo à parte.
+- **Perfil self-service do membro** (adicionado em 2026-08-09): todo Principal ganha automaticamente um **código de acesso de 12 caracteres** (`profileAccessCode`, gerado sozinho — não precisa de ação manual, nem migração de dados pra quem já existia) que dá acesso a uma tela pública `/perfil/:código`, sem login, sem JWT (mesmo modelo do código de leilão, mas em página separada — `/perfil`, distinta de `/codigo` — e com formato distinto, 12 alfanuméricos vs. os 6 caracteres `LLLLNN` do código de leilão, então não há confusão entre os dois). Na tela admin de Personagens o código fica **mascarado por padrão** (`••••••••••••`), com um ícone de olho pra revelar/ocultar (e só aí aparece o botão Copiar) — GM/conselho compartilha manualmente com o membro. GM/conselho também pode **gerar um código novo a qualquer momento** (ex: suspeita de vazamento) — o código anterior para de funcionar na hora. Nessa tela o próprio membro pode:
+  - **Informar o ID do Discord** (obrigatório, validado como número de 17-19 dígitos — não aceita nome de usuário) — aplica na hora.
+  - **Trocar o avatar** — duas opções, ambas aplicam na hora, sem aprovação (zero impacto na economia/elegibilidade): escolher um dos **8 avatares prontos gerados via DiceBear** (serviço externo open-source/gratuito, `adventurer` com seeds fixas — só referencia a URL, não hospedamos nada; a escolha é validada contra uma whitelist server-side, nunca aceita URL arbitrária), ou fazer **upload de imagem própria**. Enquanto não define nenhum, mostra um avatar padrão genérico em SVG.
+  - **Pedir atualização de nível**, sempre com **print de comprovação obrigatório** — mas **nunca aplica na hora**: vira um `LevelChangeRequest` `PENDING`, e só quando o GM/conselho aprova (tela "Solicitações de Nível") é que o `Character.level` muda de verdade. Decisão deliberada: nível decide elegibilidade em item de leilão com Proteção (PCE), então um valor errado — por engano ou de propósito — poderia deixar alguém ofertar num item que não devia; a fila de aprovação evita isso. Só pode existir 1 solicitação `PENDING` por vez por personagem (evita fila duplicada); aprovar/rejeitar (com motivo obrigatório) é GM+conselho, mesmo nível de acesso do resto do cadastro de personagens.
+
+## 4. Moeda e Ledger (extrato financeiro)
+
+- Nome e sigla da moeda são configuráveis por guild (na SaborRF: **Bear Coins / BRC**).
+- A carteira de cada Principal **não é um saldo solto** — é sempre a soma de um **ledger** (extrato) de transações. Toda alteração de saldo gera um registro de transação, nunca uma edição direta de saldo.
+- Tipos de transação:
+  - **Atividade automática** (emissão) — gerada ao importar um XML, quando uma atividade tem valor > 0 e o personagem cumpriu os requisitos daquele dia.
+  - **Evento manual com print** (emissão em lote) — GM ou conselho credita o mesmo valor para vários Principais selecionados manualmente, com print de comprovação anexado.
+  - **Vitória em leilão** (queima) — debita o valor do lance vencedor.
+  - **Transferência** (neutra) — move BRC de um Principal para outro; sempre com print de comprovação obrigatório; sempre pública.
+  - **Imposto semanal** (queima) — aplicação automática do percentual configurado.
+  - **Emissão Manual do GM** (emissão OU queima, valor positivo ou negativo) — exclusiva do GM (conselho não tem acesso), aplicada a um ou vários Principais de uma vez (todos com o mesmo valor — corrigido em 2026-08-09, antes só aceitava 1 por vez), com motivo obrigatório e print opcional. Sempre pública. Existe justamente pra cobrir o caso de o import do XML de um dia falhar ou sair tarde (ver seção 12) — o GM credita manualmente quem ficaria sem receber.
+- **Regra de segurança**: nenhuma queima (imposto, leilão, emissão manual negativa) pode deixar a carteira de um Principal negativa.
+
+## 5. Atividades e Painel de Eventos
+
+- Catálogo de Atividades é a base de todo ganho de BRC (exceto leilão, transferência e emissão manual).
+- Quando a atividade é originada de uma coluna do XML, o **nome fica travado** (idêntico ao nome da coluna no jogo). Quando é criada manualmente pelo GM/conselho, o nome é livre.
+- **Coluna nova detectada num XML importado** (ex: o jogo lançou uma atualização com uma atividade nova): o sistema **cria automaticamente** uma nova Atividade com esse nome travado e **valor inicial 0 BRC** — a importação nunca trava por isso, e a atividade já fica pronta para uso.
+- **Emissão é sempre no momento do import, nunca retroativa** (corrigido em 2026-08-09 — antes o sistema tinha um comportamento errado aqui). O valor de uma Atividade é só "a régua vigente agora": toda vez que um XML é importado, o sistema olha o valor **atual** de cada atividade e emite BRC pra quem cumpriu a condição **naquele dia específico do arquivo**. Mudar o valor de uma atividade depois (ex: RAID sai de 10 pra 15) é só uma troca de configuração — **não reprocessa nem paga de novo nenhum dia já importado**, só passa a valer pros **próximos** imports. O mesmo vale pra criar/editar uma atividade composta (ex: mudar quais colunas formam a "Diária") — nunca dispara pagamento retroativo, só afeta imports futuros. Enquanto o valor for 0, ninguém recebe nada por aquela atividade nos imports seguintes até o GM/conselho definir um valor > 0.
+- **Import padrão / configuração antes de produção**: dá pra importar uma versão do XML do jogo só com a linha de cabeçalho (nomes das colunas), **sem nenhuma linha de personagem** — isso cria o catálogo de Atividades zerado (mesmo mecanismo do item acima) sem afetar nenhum personagem existente. Serve pra, ao configurar uma guild nova, definir os valores reais de cada atividade **antes** do primeiro import de verdade.
+- **Pré-cadastrar atividades conhecidas** (adicionado em 2026-08-09, redesenhado no mesmo dia): em "Atividades do Jogo", uma lista de checkboxes com os nomes reais das colunas já observados em imports desta guild (Verificado, Doar, Atividade da Guilda, Raid de Guilda, Expedição da Guilda, Confronto pelo Paraíso, Campo de Batalha de Aço, Escaramuça, Fortaleza Albern, Guerra de Mineração) — o GM marca as que ainda não existem e define o valor, **sem digitar nenhum nome** (elimina o risco de erro de digitação/acento que existiria com um campo de texto livre). A lista só mostra o que ainda falta cadastrar; some sozinha quando não sobra nada. Criada travada (`isNameLocked`/`XML_COLUMN`), exatamente como se tivesse sido auto-detectada. Pra um nome de atividade genuinamente novo (fora dessa lista conhecida), o caminho continua sendo o "import padrão" (cabeçalho só) acima, que lê o nome real direto do arquivo do jogo.
+- **Frequência de emissão é configurável por atividade** (`Activity.recurrencePeriod` + `maxOccurrencesPerPeriod`, corrigido em 2026-08-09 depois de um bug real de pagamento em dobro descoberto nos dados desta guild, generalizado no mesmo dia pra suportar qualquer número de ocorrências por período — ver CHANGELOG):
+  - **`DAILY`**: o "checked" reflete o dia específico — emite toda vez que aparecer marcado. **Verificado, Doar, Atividade da Guilda** (e a composta **"Diária"** que os agrega) resetam todo dia — confirmado pelo GM.
+  - **`WEEKLY`** (reseta toda segunda-feira) / **`MONTHLY`** (reseta todo dia 1º do mês) — sempre às **07h GMT-3** (regra fixa do jogo em si: diária/semanal/mensal sempre nesse horário, não configurável por atividade nem por guild — confirmado pelo GM). `maxOccurrencesPerPeriod` (padrão 1, mas suporta 2, 3... pra atividades futuras que aconteçam mais de uma vez no período) define quantas vezes dentro do período ela pode pagar. Duas checagens combinadas pra decidir se paga: (1) hoje precisa ser uma ocorrência **nova dentro do período atual** — o dia anterior mais recente com registro **desse mesmo período** não pode estar marcado (nunca olha pra um período anterior, senão um "checked" que nunca voltou a false no período anterior bloquearia o período seguinte pra sempre — bug real encontrado e corrigido durante os testes); (2) o total já emitido nesse período precisa estar abaixo do limite configurado. Já aplicado como `WEEKLY` com limite 1 em **Raid de Guilda, Expedição da Guilda, Confronto pelo Paraíso, Campo de Batalha de Aço, Escaramuça, Fortaleza Albern e Guerra de Mineração**.
+  - Dropdown "Frequência" (+ campo "vezes por período" quando não é Diária) em Atividades do Jogo, pro GM configurar cada atividade — o sistema não tem como adivinhar isso sozinho, nem tenta: a classificação é sempre manual, definida antes do sistema computar a recorrência.
+- Uma Atividade pode ser espelhada no **Painel de Eventos**, público e sem necessidade de login, com:
+  - Agenda opcional: sem agenda fixa (só disparada manualmente), data única, ou recorrência (ex: toda terça 20h).
+  - Valor em BRC visível.
+  - **Imagem opcional** ilustrando o evento.
+  - O painel é puramente informativo — o sistema **nunca** dispara ações automáticas (como abrir leilão) a partir da agenda.
+- **Eventos Personalizados** (redesenhado em 2026-08-09, duas rodadas): telas separadas por origem, porque não existe check-in automático fora do XML:
+  - **"Atividades do Jogo"** (`/admin/activities`) mostra só o que vem de colunas do XML e as atividades compostas (ex: "Diária", que agrega colunas do jogo) — tudo que pode emitir BRC automaticamente a partir de check-in.
+  - **"Eventos Personalizados"** (`/admin/custom-events`) é onde vivem eventos manuais simples — ex: "Guerra de Guild", "Boss Night" — em duas etapas:
+    1. **Publicação**: GM/conselho cria o evento (nome + valor sugerido + agenda + imagem) numa única tela — já nasce visível no Painel de Eventos da home (`showOnEventsPanel: true` por padrão), ao lado dos eventos do jogo. O **valor sugerido** nunca emite BRC sozinho — é só o default pro formulário de distribuição.
+    2. **Distribuição**: depois que o evento acontece, clique "Distribuir BRC" no próprio card do evento — escolhe a data da ocorrência, quem participou de verdade (sempre com print de comprovação) e o valor (editável, pode diferir do sugerido). A dupla (evento, data da ocorrência) é única — não dá pra pagar a mesma ocorrência duas vezes por engano.
+  - **Encerramento**: se o evento **não é recorrente** (`NONE`/`ONE_TIME`), distribuir BRC já encerra ele sozinho — só existe 1 ocorrência possível. Se é **recorrente**, distribuir fecha só aquela ocorrência e o evento continua ativo pras próximas semanas; encerrar o evento inteiro (parando todas as ocorrências futuras, some do Painel de Eventos) é uma ação manual separada, com "Reabrir" disponível se for engano.
+
+## 6. Catálogo de Proteções (PCE)
+
+- Totalmente editável pelo GM/conselho: nome (ex: PCE1, PCES2), descrição em texto livre (explicando a regra, tipo "Elite Carrie T1 lvl 57+"), lance mínimo em BRC, nível mínimo de personagem exigido.
+- Podem ser criadas, editadas ou removidas livremente — o conjunto inicial (PCE1-4, PCES1-2) é só o ponto de partida documentado nas regras da SaborRF.
+- Na tela de cadastro de item de leilão, a lista de proteções deve aparecer com a **descrição completa visível** (não só a sigla), já que quem cadastra o item pode não ser o autor da regra e precisa entender do que se trata sem precisar perguntar.
+
+## 7. Leilão
+
+- Um **leilão** representa um evento do jogo, tem um **título** e contém **um ou mais itens**.
+- Cada item pode ter uma Proteção do catálogo (seção 6) associada, ou nenhuma (nesse caso, qualquer Principal participante pode ofertar).
+- Ao criar o leilão, o conselho/GM marca quais Principais **participaram** daquele evento no jogo.
+- Para cada participante, o sistema calcula os itens em que ele é **elegível** (sem proteção = todos; com proteção = `level do personagem >= level mínimo da proteção`).
+- **Código de acesso único por par (Principal, leilão)**, gerado **somente** para quem é elegível em pelo menos 1 item do leilão. Quem participou mas não bate requisito de nenhum item não recebe código.
+- Quem tem código vê **todos os itens do leilão** (transparência total), mas só consegue ofertar nos itens em que é elegível — os demais aparecem visíveis e bloqueados, com o motivo.
+- Antes de publicar, o conselho/GM define a **data e hora exata de término** do leilão (não é mais uma duração fixa de 24h contada a partir da publicação — corrigido em 2026-08-09); todos os itens do mesmo leilão fecham juntos nesse instante. Publicar só é permitido com essa data/hora definida e no futuro.
+- Lances **só sobem** — o valor de um lance em si nunca pode ser reduzido ou editado. O que o jogador pode fazer é **desistir do item inteiro** (seção 7.1 abaixo) — diferente de "abaixar o lance".
+- **Saldo disponível** para ofertar = saldo da carteira − soma dos lances ativos em outros leilões abertos no momento (hold, também chamado de "reservado em lances" na UI). Se o jogador é superado num lance, ou desiste, ou o item é cancelado, o valor retido volta a ficar disponível **imediatamente** (nunca existe um débito real até o item ser de fato vencido — hold é só um cálculo de quanto está reservado, nunca uma transação).
+- Empate no valor mais alto é resolvido no dado, **apenas entre quem empatou**.
+- Item sem nenhum lance ao expirar: fica marcado "Não reclamado — será randomizado no jogo", sem nenhuma ação automática do sistema.
+- Distribuição do código é **manual**, feita pelo conselho/GM (ex: colar no Discord); a interface deve ter um botão **"Copiar"** para cada código gerado, para agilizar — copia só o código puro, não um link.
+- Existe um **painel público do leilão** (em andamento e encerrado), sem necessidade de código nem login — mostra itens, lances e vencedores, mas não permite ofertar.
+- **Entrada de código** (corrigido em 2026-08-09): a URL direta `/oferta/:código` sempre funcionou, mas faltava um ponto de entrada visível pra um jogador que só recebeu o código em texto (ex: colado no Discord). Adicionado o link **"Código"** no menu público, levando a `/codigo`: campo de texto onde o jogador cola/digita o código (maiúsculas automáticas) e é redirecionado pra `/oferta/:código`; código inválido cai na mesma tela de erro que já existia.
+- **Formato do código** (corrigido em 2026-08-09): mudou de 10 caracteres aleatórios pra **LLLLNN** (4 letras + 2 números, ex: `EHDS77`) — curto o bastante pra decorar de cabeça, sem precisar copiar/colar. Mesmo alfabeto sem 0/O/1/I de antes. Códigos já emitidos com o formato antigo continuam funcionando normalmente até o leilão deles fechar — a mudança só afeta leilões publicados a partir de agora.
+
+### 7.1 Desistência de item pelo jogador (adicionado em 2026-08-09)
+
+- Um jogador que já deu lance num item pode **desistir** dele a qualquer momento enquanto o item estiver em andamento. O lance em si nunca é apagado (histórico sempre preservado, transparência total) — só passa a ser ignorado nos cálculos de líder/hold/vitória a partir da desistência.
+- **Se restar só 1 concorrente ativo com lance** depois de uma desistência, ele **vence na hora** — não precisa esperar o leilão expirar. Sem essa pessoa ter feito nada, o sistema resolve sozinho.
+- **Se ninguém mais restar** (ex: o único que tinha dado lance no item desiste), o item vira "Não reclamado", igual a um item que expirou sem nenhum lance.
+- **Segurança contra a corrida "último a desistir"**: desistência é travada por item (lock de concorrência no banco, igual ao usado pra lances), garantindo que a contagem de "quem ainda está dentro" nunca fica inconsistente. Ninguém é impedido de desistir — inclusive quem seria o último/vencedor ainda consegue, desde que a ação dele chegue antes da transação de quem desistiu por último terminar (não existe como "prender" a saída de alguém só porque ele seria declarado vencedor).
+- Depois que um item é resolvido (por desistência, cancelamento do GM, ou expiração natural), ele para de aceitar lances e desistências — tentar qualquer uma das duas ações recebe um erro claro.
+
+### 7.2 Encerramento antecipado pelo GM (adicionado em 2026-08-09)
+
+- O **GM** (só GM, conselho não tem esse botão) pode encerrar um **item específico** ou o **leilão inteiro** antes da data/hora de término programada — sempre com um **motivo obrigatório** em texto livre, guardado e exibido publicamente.
+- Encerrar um item: o item vira "Cancelado" com o motivo, sem vencedor, sem queima — quem tinha lance ali tem o valor liberado na hora (nunca houve débito real).
+- Encerrar o leilão inteiro: todo item ainda em andamento vira "Cancelado" com o mesmo motivo (itens já resolvidos — vencidos, não reclamados, ou já cancelados individualmente — não são tocados), e o leilão fecha.
+
+### 7.3 Controle total do GM: apagar leilão/item em qualquer status (adicionado em 2026-08-09)
+
+- O **GM** (só GM) pode apagar um **item específico** ou o **leilão inteiro**, em **qualquer status** — rascunho, aberto ou encerrado — sempre com **motivo obrigatório**. Diferente do "Apagar rascunho"/"Remover" comuns (que só funcionam em rascunho/aguardando aprovação, sem motivo, porque nunca houve consequência financeira), esse é o botão de emergência pra quando algo precisa sumir mesmo já tendo ido ao ar.
+- **A queima de um item já vencido nunca é apagada ou editada** (ledger é append-only, seção 4) — em vez disso, o sistema cria automaticamente uma transação de **reversão** (`AUCTION_WIN_REVERSAL`) creditando o vencedor de volta no valor exato do lance vencedor, antes de apagar o item. Resultado: o saldo do jogador volta ao que era antes de ganhar, e o extrato público mostra tanto a queima original quanto a reversão, pra sempre — nunca fica um buraco na história financeira, mesmo com o leilão/item já não existindo mais.
+- Itens ainda em andamento (sem vencedor) não geram reversão nenhuma — só são apagados, já que nenhum débito real tinha acontecido (holds nunca foram queima de verdade).
+
+## 8. Papéis e acesso
+
+- **GM** (dono/administrador máximo): acesso total. Único que cria e gerencia contas de Conselho (usuário + senha aleatória de 10 dígitos gerada pelo sistema; sem self-service de reset — só o GM vê/redefine). Único que pode usar a Emissão Manual, disparar o corte semanal manualmente, editar o Aviso Fixo da home (seção 9), e baixar/restaurar backup do banco (`/admin/backup`, adicionado em 2026-08-09).
+- **Conselho**: mesmo nível de acesso do GM em tudo (cadastro de atividades, proteções, personagens, criação de leilões, transferências, eventos manuais com print), **exceto** gerenciar contas de conselho e usar a Emissão Manual.
+- **Membros comuns**: sem login tradicional. Acessam o sistema apenas via:
+  - Código pessoal de leilão (para ofertar, até a data/hora de término daquele leilão específico).
+  - Páginas totalmente públicas, sem login algum (seção 9).
+
+## 9. Transparência pública (sem necessidade de login)
+
+- Ranking geral de saldo de todos os Principais.
+- Painel de leilões (em andamento e histórico completo).
+- Feed de transferências entre membros e de emissões manuais do GM (sempre com print, quando anexado).
+- Painel de eventos/calendário (com imagem, quando cadastrada).
+- **Aviso Fixo** (adicionado em 2026-08-09): texto livre, sempre visível em destaque no topo da home, separado do Mural normal (que continua existindo por baixo) — pensado pra um lembrete operacional permanente (ex: prazo diário de check-in/doação/atividade). Só o GM edita (nem o Conselho); fica escondido quando o texto está vazio.
+
+## 10. Estratégia multi-guild / white-label
+
+- **Sem camada de multi-tenant dentro do app.** Cada guild nova = um novo deploy independente (novo projeto no Dokploy + novo endereço de DNS), gerenciado manualmente pelo GM/dono do produto.
+- Tudo que é específico da guild deve estar em **Configurações da Guild**, nunca hardcoded:
+  - Nome da guild (deve aparecer visivelmente na marca/design da instância, ex: cabeçalho do site).
+  - Nome e sigla da moeda.
+  - Idioma padrão.
+  - Percentual do imposto semanal (1% a 20%).
+  - Dia da semana e horário do corte/imposto.
+  - Lance mínimo padrão pra item de leilão sem proteção (`defaultMinBid`, padrão 10 BRC).
+  - Texto do Aviso Fixo da home (só o GM edita).
+- **Internacionalização (i18n)** obrigatória desde o início: português (Brasil) como padrão, inglês e espanhol como idiomas adicionais, com troca de idioma disponível a qualquer visitante. Implementado em todas as páginas **públicas** (ranking, leilões, extrato, eventos) e na página do jogador via código — o painel administrativo (GM/conselho) fica só em português por enquanto, já que é uso interno da equipe da guild; pode ganhar i18n depois se algum cliente precisar.
+
+## 11. Stack técnica
+
+- **Backend**: Node.js + NestJS (TypeScript).
+- **Frontend**: React + TypeScript, com design **mobile-first** (grande parte dos membros acessa pelo celular, sem login).
+- **Banco de dados**: PostgreSQL.
+- **Infraestrutura**: Docker Compose (app + banco), preparado para deploy futuro via Dokploy.
+- **Jobs agendados**: corte/imposto semanal automático; expiração de leilões (na data/hora de término definida pelo conselho/GM).
+- **Deploy de produção**: `docker-compose.prod.yml` (build multi-stage, sem porta de banco exposta) + `.env` por guild. Processo completo documentado em [DEPLOY.md](DEPLOY.md).
+- **Backup/restauração**: duas formas, mesma tecnologia por baixo (`pg_dump`/`psql`, cliente `postgresql-client-16` instalado na imagem do backend pra bater com a versão major do Postgres do compose — client mais antigo que o servidor faz o `pg_dump` recusar rodar):
+  - **Via shell** (`scripts/backup-db.sh`/`scripts/restore-db.sh`), pra quem tem acesso SSH ao servidor — dump comprimido, mantém os últimos 14.
+  - **Via admin** (`/admin/backup`, adicionado em 2026-08-09, GM-only): baixa um `.sql` direto pelo navegador (`pg_dump --clean --if-exists`, conectando pela rede via `DATABASE_URL`, sem precisar de socket do Docker); restaurar exige digitar a palavra "RESTAURAR" pra confirmar (validado também no backend) — sobrescreve o banco inteiro na hora, sem chance de desfazer pelo próprio app. Cobre só o banco — prints/imagens enviadas (`uploads/`) não entram nesse arquivo.
+
+## 12. Importação de dados
+
+- Upload manual do(s) arquivo(s) `.xml` pelo painel do GM/conselho — **suporta lote** (selecionar vários arquivos de uma vez, ex: pra colocar em dia dias que esqueceu de enviar). Cada arquivo é processado sequencialmente, em ordem cronológica pelo próprio nome (o padrão `AAAAMMDD_HHMMSS_...` já ordena certo alfabeticamente), e o resultado de cada um (sucesso/pulado/erro) é reportado individualmente — um arquivo com problema não trava o restante do lote.
+- A data de cada arquivo vem **só do nome do arquivo** (`AAAAMMDD_HHMMSS_NomeDaGuild.xml`), nunca do conteúdo — é assim que o sistema sabe "de qual data é qual arquivo".
+- **Reenviar a mesma data é permitido e esperado** (mudou em 2026-08-09 — antes a 2ª importação de uma data já processada era rejeitada). O jogo republica o XML do dia várias vezes conforme mais gente faz check-in/doação/atividade ao longo do dia; o GM pode baixar cedo e reenviar depois quantas vezes precisar, inclusive pra corrigir um dia antigo.
+  - **Dedup que continua existindo**: nome de arquivo exato já importado → rejeitado (evita reenvio acidental do mesmo arquivo).
+  - **Nunca emite duas vezes**: a garantia real é no nível da emissão, não da importação — `LedgerService.emitOnce` só cria uma transação se ainda não existir uma pro mesmo (personagem, atividade, dia); reenviar uma data só emite pra quem **ainda não tinha recebido** naquele dia (ex: quem fez check-in depois do primeiro download).
+  - **Status "Saiu" só é reavaliado na 1ª importação processada de cada data** — reenvios da mesma data (inclusive corrigindo uma data antiga) nunca voltam a mexer em quem "Saiu", pra não marcar por engano como ausente alguém que só ficou de fora daquele arquivo específico reenviado (ver `ImportService.isFirstImportForDate`).
+- Colunas desconhecidas nunca bloqueiam a importação (ver seção 5) — e o resultado de cada import lista os nomes exatos das atividades novas detectadas, pra conferir contra atividades pré-cadastradas (seção 5).
+
+## 13. Glossário rápido
+
+- **BRC**: Bear Coins, nome da moeda usada pela guild SaborRF (configurável por guild).
+- **DKP**: Dragon Kill Points, termo genérico do gênero para sistemas de pontuação de loot.
+- **PCE**: Proteção para Carrie de Elite — mecanismo de proteção de itens de alto valor para jogadores mais desenvolvidos (catálogo editável, seção 6).
+- **CM**: Contra-Medidas de Resgate — condições para manter uma proteção PCE válida (participação ativa, só Principal, intervenção do conselho no jogo quando necessário).
+- **Emissão**: criação de moeda do zero e crédito a um membro (atividade, evento, emissão manual positiva).
+- **Queima**: remoção de moeda que deixa de existir (imposto semanal, vitória em leilão, emissão manual negativa) — diferente de transferência, que é neutra entre dois membros.
+
+---
+*Última atualização: 2026-08-09. Alterar este arquivo sempre que uma premissa mudar.*

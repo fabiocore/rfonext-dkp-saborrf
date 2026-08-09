@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Uploads (runtime data, not source)
+backend/uploads/
+
+# Backups de banco (gerados localmente, nunca versionar)
+backups/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Editor/OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Prisma
+backend/prisma/*.db
+
+# Docker
+docker-compose.override.yml
+
+# MCP config com API key do Dokploy em texto puro — nunca versionar
+.mcp.json
+
+# XMLs de exemplo/dados reais da guild, doc de regras — referência local, não é código do app
+/Source/

@@ -1,0 +1,601 @@
+/* ---------- Público: shell ---------- */
+
+.app-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* Header com navegação (site público): nome da guild numa linha própria em
+   cima, menu + bandeiras de idioma numa linha própria embaixo — evita ter
+   que espremer 6 links + seletor de idioma numa linha só. */
+.app-header-main {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.app-header-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guild-name {
+  font-family: var(--heading);
+  font-weight: 700;
+  font-size: 1.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-h);
+}
+
+.language-switcher {
+  display: flex;
+  gap: 6px;
+}
+
+.language-switcher button {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  line-height: 0;
+  transition: all 0.15s ease;
+}
+
+.language-switcher button:hover {
+  border-color: var(--accent-border);
+  color: var(--text-h);
+}
+
+.language-switcher button.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.subtitle {
+  opacity: 0.8;
+  margin-top: -8px;
+  margin-bottom: 16px;
+  font-size: 0.92rem;
+}
+
+.public-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+}
+
+.public-nav a {
+  display: flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  transition: all 0.15s ease;
+}
+
+.public-nav a:hover {
+  color: var(--text-h);
+  background: var(--bg-elevated-2);
+}
+
+.public-nav a.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.public-nav a:has(svg) {
+  padding: 7px 10px;
+}
+
+/* ---------- Tabelas ---------- */
+
+.leaderboard-table,
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.92rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.leaderboard-table th,
+.data-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--bg-elevated-2);
+  color: var(--text-h);
+  font-family: var(--heading);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.leaderboard-table td,
+.data-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.leaderboard-table tbody tr:hover td,
+.data-table tbody tr:hover td {
+  background: var(--bg-elevated-2);
+}
+
+.leaderboard-table tr.inactive,
+.data-table tr.inactive {
+  opacity: 0.5;
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 12px;
+  }
+  .leaderboard-table {
+    font-size: 0.85rem;
+  }
+}
+
+/* ---------- Perfil: galeria de avatares prontos ---------- */
+
+.avatar-preset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.avatar-preset-btn {
+  padding: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-elevated-2);
+  cursor: pointer;
+  line-height: 0;
+  transition: all 0.15s ease;
+}
+
+.avatar-preset-btn:hover {
+  border-color: var(--accent-border);
+}
+
+.avatar-preset-btn.selected {
+  border-color: var(--accent);
+}
+
+.avatar-preset-btn img {
+  display: block;
+  border-radius: 50%;
+}
+
+/* ---------- Admin: login ---------- */
+
+.admin-login-shell {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background:
+    radial-gradient(600px circle at 50% 0%, var(--accent-bg), transparent 70%),
+    var(--bg);
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.admin-login-card h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.admin-login-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+/* ---------- Inputs / botões (admin + público) ---------- */
+
+input,
+select {
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-elevated-2);
+  color: var(--text-h);
+  font-size: 0.95rem;
+  font-family: var(--sans);
+  transition: border-color 0.15s ease;
+}
+
+input[type='checkbox'] {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+button {
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-border);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-family: var(--heading);
+  transition: all 0.15s ease;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--bg-elevated-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* Botões secundários (Remover, Copiar, toggles inline) ficam "ghost" —
+   qualquer botão dentro de uma linha de tabela ou ao lado de outro botão. */
+.data-table button,
+.leaderboard-table button,
+.auction-item-card button:not([type='submit']),
+.components-editor button {
+  background: transparent;
+  color: var(--text-h);
+  border-color: var(--border);
+}
+
+.data-table button:hover,
+.leaderboard-table button:hover,
+.auction-item-card button:not([type='submit']):hover,
+.components-editor button:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+  line-height: 0;
+}
+
+/* ---------- Admin: shell ---------- */
+
+.admin-shell {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-header .guild-name {
+  font-size: 1rem;
+}
+
+.admin-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.admin-user {
+  color: var(--text);
+}
+
+.admin-body {
+  display: flex;
+  flex: 1;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 12px;
+  min-width: 200px;
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+}
+
+.admin-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-nav-group + .admin-nav-group {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.admin-nav-group-label {
+  padding: 0 12px;
+  margin-bottom: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.admin-nav a {
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.admin-nav a:hover {
+  background: var(--bg-elevated-2);
+  color: var(--text-h);
+}
+
+.admin-nav a.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 24px;
+  overflow-x: auto;
+}
+
+@media (max-width: 720px) {
+  .admin-body {
+    flex-direction: column;
+  }
+  .admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    min-width: 0;
+    gap: 4px 8px;
+  }
+  .admin-nav-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .admin-nav-group + .admin-nav-group {
+    padding-top: 0;
+    border-top: none;
+  }
+  .admin-nav-group-label {
+    display: none;
+  }
+}
+
+/* ---------- Admin: forms & tables ---------- */
+
+.inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-h);
+  font-weight: 600;
+}
+
+.upload-box {
+  margin-bottom: 16px;
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.form-success {
+  color: var(--success);
+  font-size: 0.85rem;
+}
+
+.badge {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-elevated-2);
+  color: var(--text);
+  margin-left: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badge-yes {
+  background: var(--success-bg);
+  color: var(--success);
+  margin-left: 0;
+}
+
+.badge-no {
+  background: var(--danger-bg);
+  color: var(--danger);
+  margin-left: 0;
+}
+
+.components-editor {
+  padding: 14px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.checkbox-grid label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+/* ---------- Leilão ---------- */
+
+.auction-item-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.pinned-announcement {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.pinned-announcement strong {
+  display: block;
+  color: var(--danger);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.auction-item-card h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.image-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.image-upload-preview img {
+  max-width: 120px;
+  max-height: 120px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 0.85rem;
+  color: var(--text);
+}

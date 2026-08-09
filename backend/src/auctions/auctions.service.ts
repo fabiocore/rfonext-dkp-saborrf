@@ -1,0 +1,781 @@
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import { generateAccessCode } from './auction-code.util';
+import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+
+const EDITABLE_STATUSES = ['DRAFT', 'PENDING_APPROVAL'] as const;
+
+@Injectable()
+export class AuctionsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // ---------------------------------------------------------------------
+  // Gestão (staff)
+  // ---------------------------------------------------------------------
+
+  createDraft(title: string, createdById: string) {
+    if (!title?.trim()) throw new BadRequestException('Título é obrigatório.');
+    return this.prisma.auction.create({ data: { title, createdById, status: 'DRAFT' } });
+  }
+
+  listForStaff() {
+    return this.prisma.auction.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { items: true, participants: true, approvals: true },
+    });
+  }
+
+  async getForStaff(id: string) {
+    const auction = await this.prisma.auction.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            protection: true,
+            winningBid: { include: { character: true } },
+            withdrawals: { include: { character: true } },
+          },
+        },
+        participants: { include: { character: true } },
+        approvals: true,
+      },
+    });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    return auction;
+  }
+
+  private async assertEditable(auctionId: string) {
+    const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    if (!EDITABLE_STATUSES.includes(auction.status as (typeof EDITABLE_STATUSES)[number])) {
+      throw new BadRequestException('Este leilão já foi publicado e não pode mais ser editado.');
+    }
+    return auction;
+  }
+
+  async addItem(
+    auctionId: string,
+    data: { name: string; description?: string; protectionId?: string | null; imageUrl?: string | null },
+  ) {
+    await this.assertEditable(auctionId);
+    if (!data.name?.trim()) throw new BadRequestException('Nome do item é obrigatório.');
+    return this.prisma.auctionItem.create({
+      data: {
+        auctionId,
+        name: data.name,
+        description: data.description,
+        protectionId: data.protectionId || null,
+        imageUrl: data.imageUrl || null,
+      },
+    });
+  }
+
+  async updateItem(
+    auctionId: string,
+    itemId: string,
+    data: { name?: string; description?: string; protectionId?: string | null; imageUrl?: string | null },
+  ) {
+    await this.assertEditable(auctionId);
+    return this.prisma.auctionItem.update({ where: { id: itemId }, data });
+  }
+
+  async removeItem(auctionId: string, itemId: string) {
+    await this.assertEditable(auctionId);
+    await this.prisma.auctionItem.delete({ where: { id: itemId } });
+  }
+
+  /**
+   * Apaga um leilão inteiro — só permitido em DRAFT/PENDING_APPROVAL (nunca
+   * publicado, então nunca teve lance/código/queima real). Um leilão já
+   * OPEN ou CLOSED não pode ser apagado, só encerrado com motivo
+   * (`closeAuction`), pra preservar o histórico público.
+   */
+  async deleteDraft(auctionId: string) {
+    await this.assertEditable(auctionId);
+
+    await this.prisma.$transaction(async (tx) => {
+      const itemIds = (await tx.auctionItem.findMany({ where: { auctionId }, select: { id: true } })).map(
+        (i) => i.id,
+      );
+      if (itemIds.length > 0) {
+        await tx.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+        await tx.auctionItemWithdrawal.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+        await tx.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
+      }
+      await tx.auctionParticipant.deleteMany({ where: { auctionId } });
+      await tx.auctionApproval.deleteMany({ where: { auctionId } });
+      await tx.auction.delete({ where: { id: auctionId } });
+    });
+  }
+
+  /**
+   * GM-only: apaga um item específico em QUALQUER status do leilão
+   * (rascunho, aberto ou encerrado) — diferente de `removeItem`, que só
+   * funciona em DRAFT/PENDING_APPROVAL e sem motivo. Se o item já tinha
+   * sido vencido (queima real já registrada no ledger), a queima **nunca**
+   * é apagada/editada — ledger é append-only (PREMISSAS.md seção 4) — em
+   * vez disso cria uma transação de reversão (`AUCTION_WIN_REVERSAL`)
+   * creditando o vencedor de volta, antes de apagar o item. Assim o
+   * histórico financeiro fica completo (dá pra ver a queima original E a
+   * reversão) mesmo depois do item deixar de existir.
+   */
+  async forceDeleteItem(auctionId: string, itemId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra apagar um item.');
+    const trimmedReason = reason.trim();
+
+    const item = await this.prisma.auctionItem.findUnique({
+      where: { id: itemId },
+      include: { winningBid: true, auction: { select: { title: true } } },
+    });
+    if (!item || item.auctionId !== auctionId) throw new NotFoundException('Item não encontrado neste leilão.');
+
+    return this.prisma.$transaction(async (tx) => {
+      if (item.resolutionStatus === 'WON' && item.winningBid) {
+        await tx.ledgerTransaction.create({
+          data: {
+            characterId: item.winningBid.characterId,
+            amount: item.winningBid.amount,
+            type: 'AUCTION_WIN_REVERSAL',
+            reasonText: `Item "${item.name}" (leilão "${item.auction.title}") apagado pelo GM — motivo: ${trimmedReason}`,
+          },
+        });
+      }
+      await tx.bid.deleteMany({ where: { auctionItemId: itemId } });
+      await tx.auctionItemWithdrawal.deleteMany({ where: { auctionItemId: itemId } });
+      await tx.auctionItem.delete({ where: { id: itemId } });
+    });
+  }
+
+  /**
+   * GM-only: apaga o leilão inteiro em QUALQUER status — mesma lógica de
+   * reversão do `forceDeleteItem`, aplicada a cada item vencido do leilão,
+   * tudo numa única transação atômica (ou reverte tudo, ou nada muda).
+   */
+  async forceDeleteAuction(auctionId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra apagar um leilão.');
+    const trimmedReason = reason.trim();
+
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      include: { items: { include: { winningBid: true } } },
+    });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of auction.items) {
+        if (item.resolutionStatus === 'WON' && item.winningBid) {
+          await tx.ledgerTransaction.create({
+            data: {
+              characterId: item.winningBid.characterId,
+              amount: item.winningBid.amount,
+              type: 'AUCTION_WIN_REVERSAL',
+              reasonText: `Item "${item.name}" (leilão "${auction.title}") apagado pelo GM — motivo: ${trimmedReason}`,
+            },
+          });
+        }
+      }
+      const itemIds = auction.items.map((i) => i.id);
+      if (itemIds.length > 0) {
+        await tx.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+        await tx.auctionItemWithdrawal.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+        await tx.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
+      }
+      await tx.auctionParticipant.deleteMany({ where: { auctionId } });
+      await tx.auctionApproval.deleteMany({ where: { auctionId } });
+      await tx.auction.delete({ where: { id: auctionId } });
+    });
+  }
+
+  /**
+   * Data/hora exata em que o leilão termina — definida pelo GM/conselho
+   * antes de publicar, em vez de uma duração fixa de 24h contada a partir
+   * da publicação.
+   */
+  async setSchedule(auctionId: string, scheduledEndAt: string) {
+    await this.assertEditable(auctionId);
+    const date = new Date(scheduledEndAt);
+    if (Number.isNaN(date.getTime())) throw new BadRequestException('Data/hora de término inválida.');
+    if (date <= new Date()) throw new BadRequestException('A data/hora de término precisa ser no futuro.');
+    return this.prisma.auction.update({ where: { id: auctionId }, data: { scheduledEndAt: date } });
+  }
+
+  /** Marca quais Principais "Ativo na Guild" participaram do evento no jogo. */
+  async setParticipants(auctionId: string, characterIds: string[]) {
+    await this.assertEditable(auctionId);
+
+    const validCharacters = await this.prisma.character.findMany({
+      where: { id: { in: characterIds }, status: 'PRINCIPAL', membershipStatus: 'ACTIVE' },
+      select: { id: true },
+    });
+    const validIds = new Set(validCharacters.map((c) => c.id));
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auctionParticipant.deleteMany({ where: { auctionId } });
+      if (validIds.size > 0) {
+        await tx.auctionParticipant.createMany({
+          data: Array.from(validIds).map((characterId) => ({ auctionId, characterId })),
+        });
+      }
+    });
+
+    return this.getForStaff(auctionId);
+  }
+
+  /**
+   * GM publica direto; Conselho só registra aprovação — com 2 aprovações de
+   * conselheiros distintos o leilão publica sozinho (PREMISSAS.md seção 7).
+   */
+  async approve(auctionId: string, user: AuthenticatedUser) {
+    const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    if (auction.status === 'OPEN' || auction.status === 'CLOSED') {
+      throw new BadRequestException('Este leilão já foi publicado.');
+    }
+
+    const itemCount = await this.prisma.auctionItem.count({ where: { auctionId } });
+    if (itemCount === 0) throw new BadRequestException('Adicione ao menos 1 item antes de publicar.');
+    const participantCount = await this.prisma.auctionParticipant.count({ where: { auctionId } });
+    if (participantCount === 0) throw new BadRequestException('Marque ao menos 1 participante antes de publicar.');
+    if (!auction.scheduledEndAt) throw new BadRequestException('Defina a data/hora de término antes de publicar.');
+    if (auction.scheduledEndAt <= new Date()) {
+      throw new BadRequestException('A data/hora de término precisa ser no futuro — ajuste antes de publicar.');
+    }
+
+    if (user.role === 'GM') {
+      return this.publish(auctionId);
+    }
+
+    // Conselho: registra aprovação (idempotente por usuário via unique constraint).
+    await this.prisma.auctionApproval.upsert({
+      where: { auctionId_userId: { auctionId, userId: user.id } },
+      update: {},
+      create: { auctionId, userId: user.id },
+    });
+    if (auction.status === 'DRAFT') {
+      await this.prisma.auction.update({ where: { id: auctionId }, data: { status: 'PENDING_APPROVAL' } });
+    }
+
+    const approvals = await this.prisma.auctionApproval.count({ where: { auctionId } });
+    if (approvals >= 2) {
+      return this.publish(auctionId);
+    }
+    return this.getForStaff(auctionId);
+  }
+
+  private async publish(auctionId: string) {
+    const auction = await this.prisma.auction.findUniqueOrThrow({
+      where: { id: auctionId },
+      include: {
+        items: { include: { protection: true } },
+        participants: { include: { character: true } },
+      },
+    });
+
+    const now = new Date();
+    // A data/hora de término é definida pelo GM/conselho antes de publicar
+    // (setSchedule) — approve() já garante que existe e está no futuro.
+    const expiresAt = auction.scheduledEndAt!;
+
+    for (const participant of auction.participants) {
+      const eligibleOnSomeItem = auction.items.some((item) => this.isEligible(participant.character, item));
+      if (!eligibleOnSomeItem) continue;
+
+      let code = generateAccessCode();
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const clash = await this.prisma.auctionParticipant.findUnique({ where: { accessCode: code } });
+        if (!clash) break;
+        code = generateAccessCode();
+      }
+
+      await this.prisma.auctionParticipant.update({
+        where: { id: participant.id },
+        data: { accessCode: code },
+      });
+    }
+
+    return this.prisma.auction.update({
+      where: { id: auctionId },
+      data: { status: 'OPEN', publishedAt: now, expiresAt },
+    });
+  }
+
+  private isEligible(character: { level: number | null }, item: { protectionId: string | null; protection: { minLevel: number } | null }) {
+    if (!item.protectionId || !item.protection) return true;
+    return (character.level ?? 0) >= item.protection.minLevel;
+  }
+
+  // ---------------------------------------------------------------------
+  // Público (sem login) — painel de acompanhamento
+  // ---------------------------------------------------------------------
+
+  getPublicList() {
+    return this.prisma.auction.findMany({
+      where: { status: { in: ['OPEN', 'CLOSED'] } },
+      orderBy: { publishedAt: 'desc' },
+      select: { id: true, title: true, status: true, publishedAt: true, expiresAt: true, items: { select: { id: true } } },
+    });
+  }
+
+  async getPublicDetail(id: string) {
+    const auction = await this.prisma.auction.findUnique({
+      where: { id },
+      include: {
+        items: {
+          include: {
+            protection: true,
+            bids: { include: { character: true }, orderBy: { amount: 'desc' } },
+            winningBid: { include: { character: true } },
+            withdrawals: { select: { characterId: true } },
+          },
+        },
+      },
+    });
+    if (!auction || auction.status === 'DRAFT' || auction.status === 'PENDING_APPROVAL') {
+      throw new NotFoundException('Leilão não encontrado.');
+    }
+    return auction;
+  }
+
+  // ---------------------------------------------------------------------
+  // Jogador via código de acesso
+  // ---------------------------------------------------------------------
+
+  private async resolveParticipant(code: string) {
+    const participant = await this.prisma.auctionParticipant.findUnique({
+      where: { accessCode: code },
+      include: {
+        character: true,
+        auction: { include: { items: { include: { protection: true, bids: true, withdrawals: true } } } },
+      },
+    });
+    if (!participant) throw new NotFoundException('Código inválido.');
+    return participant;
+  }
+
+  async getParticipantView(code: string) {
+    const participant = await this.resolveParticipant(code);
+    const walletBalance = await this.getBalance(participant.characterId);
+    const hold = await this.computeHold(participant.characterId, null);
+
+    const items = participant.auction.items.map((item) => {
+      const withdrawnCharacterIds = new Set(item.withdrawals.map((w) => w.characterId));
+      const activeBids = item.bids.filter((b) => !withdrawnCharacterIds.has(b.characterId));
+      const eligible = this.isEligible(participant.character, item);
+      const leadingAmount = activeBids.reduce((max, b) => Math.max(max, b.amount), 0);
+      const ownAmount = item.bids
+        .filter((b) => b.characterId === participant.characterId)
+        .reduce((max, b) => Math.max(max, b.amount), 0);
+      const winningBid = item.winningBidId ? item.bids.find((b) => b.id === item.winningBidId) : undefined;
+      const won = winningBid?.characterId === participant.characterId;
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        imageUrl: item.imageUrl,
+        protection: item.protection,
+        eligible,
+        leadingAmount,
+        ownAmount,
+        won,
+        bidCount: activeBids.length,
+        withdrawn: withdrawnCharacterIds.has(participant.characterId),
+        resolutionStatus: item.resolutionStatus,
+        cancelReason: item.cancelReason,
+      };
+    });
+
+    const isActive = participant.auction.status === 'OPEN' && participant.auction.expiresAt! > new Date();
+
+    return {
+      character: { id: participant.character.id, gameName: participant.character.gameName, level: participant.character.level },
+      auction: {
+        id: participant.auction.id,
+        title: participant.auction.title,
+        status: participant.auction.status,
+        expiresAt: participant.auction.expiresAt,
+      },
+      isActive,
+      walletBalance,
+      availableBalance: walletBalance - hold,
+      items,
+    };
+  }
+
+  async placeBid(code: string, auctionItemId: string, amount: number) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Valor de lance inválido.');
+    }
+
+    const participant = await this.resolveParticipant(code);
+    const auction = participant.auction;
+
+    if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {
+      throw new BadRequestException('Este leilão não está mais aberto para lances.');
+    }
+
+    const item = auction.items.find((i) => i.id === auctionItemId);
+    if (!item) throw new NotFoundException('Item não encontrado neste leilão.');
+    if (!this.isEligible(participant.character, item)) {
+      throw new ForbiddenException('Você não atinge o nível mínimo exigido para este item.');
+    }
+
+    const guildSettings = await this.prisma.guildSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1, guildName: 'Minha Guild' },
+    });
+    const configuredMin = item.protection ? item.protection.minBid : guildSettings.defaultMinBid;
+
+    return this.prisma.$transaction(async (tx) => {
+      // Trava por personagem: impede duas ofertas concorrentes do mesmo
+      // jogador (em itens/leilões diferentes) de aprovarem saldo que na
+      // verdade só existe uma vez.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${participant.characterId})::bigint)`;
+
+      // Checagem fresca (dentro do lock): o item pode ter sido resolvido
+      // (vitória automática por desistência de todo mundo, cancelado pelo
+      // GM, ou expirado) entre o carregamento inicial e agora.
+      const freshItem = await tx.auctionItem.findUnique({
+        where: { id: auctionItemId },
+        select: { resolutionStatus: true },
+      });
+      if (!freshItem || freshItem.resolutionStatus !== 'PENDING') {
+        throw new BadRequestException('Este item já foi resolvido e não aceita mais lances.');
+      }
+      // Lance líder ignora quem já desistiu — não faz sentido exigir superar
+      // o lance de um "fantasma" que não está mais concorrendo pelo item.
+      const itemWithdrawals = await tx.auctionItemWithdrawal.findMany({
+        where: { auctionItemId },
+        select: { characterId: true },
+      });
+      const withdrawnIds = itemWithdrawals.map((w) => w.characterId);
+      if (withdrawnIds.includes(participant.characterId)) {
+        throw new BadRequestException('Você já desistiu deste item e não pode mais dar lances nele.');
+      }
+
+      const leadingAgg = await tx.bid.aggregate({
+        where: { auctionItemId, characterId: { notIn: withdrawnIds } },
+        _max: { amount: true },
+      });
+      const leadingAmount = leadingAgg._max.amount ?? 0;
+
+      const ownAgg = await tx.bid.aggregate({
+        where: { auctionItemId, characterId: participant.characterId },
+        _max: { amount: true },
+      });
+      const ownAmount = ownAgg._max.amount ?? 0;
+
+      const effectiveMin = Math.max(configuredMin, leadingAmount);
+      if (amount < effectiveMin) {
+        throw new BadRequestException(`O lance mínimo agora é ${effectiveMin}.`);
+      }
+      if (amount <= ownAmount) {
+        throw new BadRequestException('Seu novo lance precisa ser maior que o seu lance anterior neste item.');
+      }
+
+      const walletBalance = await this.getBalanceTx(tx, participant.characterId);
+      const hold = await this.computeHoldTx(tx, participant.characterId, auctionItemId);
+      const available = walletBalance - hold;
+      if (amount > available) {
+        throw new BadRequestException(`Saldo disponível insuficiente. Você tem ${available} disponível agora.`);
+      }
+
+      return tx.bid.create({
+        data: { auctionItemId, characterId: participant.characterId, amount },
+      });
+    });
+  }
+
+  /**
+   * Jogador desiste de um item em que já deu lance. O lance nunca é
+   * apagado (Bid é append-only) — só passa a ser ignorado nos cálculos de
+   * líder/hold/vitória a partir de agora. Trava por ITEM (não por
+   * personagem, diferente do placeBid) pra serializar duas desistências
+   * concorrentes no mesmo item — essencial pra regra de segurança: se restar
+   * só 1 concorrente ativo com lance, ele vence *na hora*, então a contagem
+   * de "quem ainda está dentro" precisa ser atômica e consistente. Isso não
+   * bloqueia ninguém de desistir — inclusive o último a decidir sair ainda
+   * consegue, contanto que chegue antes do córdão da 2ª-pra-última pessoa
+   * fechar a transação (não há como "travar" a saída de alguém só porque
+   * ele seria o vencedor).
+   */
+  async withdrawFromItem(code: string, auctionItemId: string) {
+    const participant = await this.resolveParticipant(code);
+    const auction = participant.auction;
+
+    if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {
+      throw new BadRequestException('Este leilão não está mais aberto.');
+    }
+    const item = auction.items.find((i) => i.id === auctionItemId);
+    if (!item) throw new NotFoundException('Item não encontrado neste leilão.');
+    const hasBid = item.bids.some((b) => b.characterId === participant.characterId);
+    if (!hasBid) {
+      throw new BadRequestException('Você não tem lance neste item pra desistir.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${auctionItemId})::bigint)`;
+
+      const freshItem = await tx.auctionItem.findUnique({
+        where: { id: auctionItemId },
+        include: { bids: true, withdrawals: true },
+      });
+      if (!freshItem || freshItem.resolutionStatus !== 'PENDING') {
+        throw new BadRequestException('Este item já foi resolvido.');
+      }
+      if (freshItem.withdrawals.some((w) => w.characterId === participant.characterId)) {
+        throw new BadRequestException('Você já desistiu deste item.');
+      }
+
+      await tx.auctionItemWithdrawal.create({
+        data: { auctionItemId, characterId: participant.characterId },
+      });
+
+      const withdrawnIds = new Set([
+        ...freshItem.withdrawals.map((w) => w.characterId),
+        participant.characterId,
+      ]);
+      const activeBidderIds = new Set(
+        freshItem.bids.filter((b) => !withdrawnIds.has(b.characterId)).map((b) => b.characterId),
+      );
+
+      if (activeBidderIds.size === 0) {
+        // Todo mundo desistiu — item volta a ser "Não reclamado", igual a
+        // um item que expirou sem nenhum lance.
+        await tx.auctionItem.update({
+          where: { id: auctionItemId },
+          data: { resolutionStatus: 'UNCLAIMED', resolvedAt: new Date() },
+        });
+      } else if (activeBidderIds.size === 1) {
+        // Só sobrou 1 concorrente com lance — ele vence na hora, sem
+        // precisar esperar o leilão expirar. Sem empate possível aqui (só
+        // tem 1 pessoa), então nunca precisa de desempate no dado.
+        const winnerCharacterId = Array.from(activeBidderIds)[0];
+        const winnerBids = freshItem.bids.filter((b) => b.characterId === winnerCharacterId);
+        const winningBid = winnerBids.reduce((best, b) => (b.amount > best.amount ? b : best), winnerBids[0]);
+
+        await tx.ledgerTransaction.create({
+          data: {
+            characterId: winnerCharacterId,
+            amount: -winningBid.amount,
+            type: 'AUCTION_WIN_BURN',
+            auctionItemId,
+          },
+        });
+        await tx.auctionItem.update({
+          where: { id: auctionItemId },
+          data: { resolutionStatus: 'WON', winningBidId: winningBid.id, resolvedAt: new Date() },
+        });
+      }
+      // Se sobrar mais de 1 concorrente ativo, nada muda — item continua
+      // PENDING, aberto pros demais.
+
+      return { withdrawn: true };
+    });
+  }
+
+  /**
+   * GM encerra um item específico antes da hora (motivo obrigatório). Só
+   * itens ainda PENDING de um leilão OPEN — nada acontece com saldo porque
+   * nada tinha sido debitado ainda (hold é só cálculo, nunca débito real);
+   * a partir daqui o item para de contar em qualquer hold, liberando o
+   * valor "reservado" dos jogadores imediatamente.
+   */
+  async cancelItem(auctionId: string, itemId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra encerrar um item.');
+    const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    if (auction.status !== 'OPEN') {
+      throw new BadRequestException('Só é possível encerrar um item de um leilão publicado e aberto.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${itemId})::bigint)`;
+      const item = await tx.auctionItem.findUnique({ where: { id: itemId } });
+      if (!item || item.auctionId !== auctionId) throw new NotFoundException('Item não encontrado neste leilão.');
+      if (item.resolutionStatus !== 'PENDING') {
+        throw new BadRequestException('Este item já foi resolvido.');
+      }
+      return tx.auctionItem.update({
+        where: { id: itemId },
+        data: { resolutionStatus: 'CANCELLED', cancelReason: reason.trim(), resolvedAt: new Date() },
+      });
+    });
+  }
+
+  /**
+   * GM encerra o leilão inteiro antes da hora (motivo obrigatório) — todo
+   * item ainda PENDING vira CANCELLED com o mesmo motivo, e o leilão fecha.
+   * Saldo "reservado" de todo mundo libera na hora, pelo mesmo motivo do
+   * cancelItem: nunca houve débito real, só deixa de contar no hold.
+   */
+  async closeAuction(auctionId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra encerrar o leilão.');
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      include: { items: { where: { resolutionStatus: 'PENDING' }, select: { id: true } } },
+    });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    if (auction.status !== 'OPEN') {
+      throw new BadRequestException('Só é possível encerrar um leilão publicado e aberto.');
+    }
+
+    const pendingItemIds = auction.items.map((i) => i.id).sort();
+    const trimmedReason = reason.trim();
+
+    return this.prisma.$transaction(async (tx) => {
+      for (const itemId of pendingItemIds) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${itemId})::bigint)`;
+      }
+      if (pendingItemIds.length > 0) {
+        await tx.auctionItem.updateMany({
+          where: { id: { in: pendingItemIds }, resolutionStatus: 'PENDING' },
+          data: { resolutionStatus: 'CANCELLED', cancelReason: trimmedReason, resolvedAt: new Date() },
+        });
+      }
+      return tx.auction.update({
+        where: { id: auctionId },
+        data: { status: 'CLOSED', closeReason: trimmedReason },
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Saldo / hold (duplica lógica simples de saldo do LedgerService — ver
+  // nota em placeBid: precisa rodar na MESMA transação/lock do advisory
+  // lock, então não pode delegar pro LedgerService que usa outra conexão).
+  // ---------------------------------------------------------------------
+
+  private async getBalance(characterId: string): Promise<number> {
+    const result = await this.prisma.ledgerTransaction.aggregate({
+      where: { characterId },
+      _sum: { amount: true },
+    });
+    return result._sum.amount ?? 0;
+  }
+
+  private async getBalanceTx(tx: any, characterId: string): Promise<number> {
+    const result = await tx.ledgerTransaction.aggregate({ where: { characterId }, _sum: { amount: true } });
+    return result._sum.amount ?? 0;
+  }
+
+  /** Soma os lances em que o personagem está liderando (ou empatado) em itens abertos, exceto excludeItemId. */
+  private async computeHold(characterId: string, excludeItemId: string | null): Promise<number> {
+    return this.computeHoldTx(this.prisma, characterId, excludeItemId);
+  }
+
+  private async computeHoldTx(tx: any, characterId: string, excludeItemId: string | null): Promise<number> {
+    const openItems = await tx.auctionItem.findMany({
+      where: {
+        auction: { status: 'OPEN', expiresAt: { gt: new Date() } },
+        resolutionStatus: 'PENDING',
+        ...(excludeItemId ? { id: { not: excludeItemId } } : {}),
+      },
+      select: {
+        id: true,
+        bids: { select: { characterId: true, amount: true } },
+        withdrawals: { select: { characterId: true } },
+      },
+    });
+
+    let hold = 0;
+    for (const item of openItems as Array<{
+      id: string;
+      bids: { characterId: string; amount: number }[];
+      withdrawals: { characterId: string }[];
+    }>) {
+      const withdrawnIds = new Set(item.withdrawals.map((w) => w.characterId));
+      const activeBids = item.bids.filter((b) => !withdrawnIds.has(b.characterId));
+      if (activeBids.length === 0) continue;
+      const leadingAmount = activeBids.reduce((max, b) => Math.max(max, b.amount), 0);
+      const ownBest = activeBids
+        .filter((b) => b.characterId === characterId)
+        .reduce((max, b) => Math.max(max, b.amount), 0);
+      if (ownBest > 0 && ownBest === leadingAmount) {
+        hold += leadingAmount;
+      }
+    }
+    return hold;
+  }
+
+  // ---------------------------------------------------------------------
+  // Resolução automática (cron)
+  // ---------------------------------------------------------------------
+
+  async resolveExpiredAuctions() {
+    const expired = await this.prisma.auction.findMany({
+      where: { status: 'OPEN', expiresAt: { lte: new Date() } },
+      // Só itens ainda PENDING: um item já pode ter sido resolvido antes da
+      // hora (vitória automática por desistência de todo mundo, ou
+      // cancelado pelo GM) — reprocessá-lo aqui queimaria o vencedor de
+      // novo (double-burn) ou sobrescreveria um cancelamento.
+      include: {
+        items: {
+          where: { resolutionStatus: 'PENDING' },
+          include: { bids: { include: { character: true } }, withdrawals: { select: { characterId: true } } },
+        },
+      },
+    });
+
+    for (const auction of expired) {
+      for (const item of auction.items) {
+        // Ignora lances de quem já desistiu do item — mesma regra usada em
+        // hold/placeBid/withdraw, pra não declarar um "fantasma" vencedor.
+        const withdrawnIds = new Set(item.withdrawals.map((w) => w.characterId));
+        const activeBids = item.bids.filter((b) => !withdrawnIds.has(b.characterId));
+
+        if (activeBids.length === 0) {
+          await this.prisma.auctionItem.update({
+            where: { id: item.id },
+            data: { resolutionStatus: 'UNCLAIMED', resolvedAt: new Date() },
+          });
+          continue;
+        }
+
+        const leadingAmount = activeBids.reduce((max, b) => Math.max(max, b.amount), 0);
+        const leaderBidsByCharacter = new Map<string, (typeof activeBids)[number]>();
+        for (const bid of activeBids) {
+          if (bid.amount === leadingAmount) leaderBidsByCharacter.set(bid.characterId, bid);
+        }
+        const tiedBids = Array.from(leaderBidsByCharacter.values());
+
+        let winningBid = tiedBids[0];
+        let diceRollDetail: unknown = null;
+        if (tiedBids.length > 1) {
+          const rolls = tiedBids.map((bid) => ({
+            characterId: bid.characterId,
+            gameName: bid.character.gameName,
+            roll: 1 + Math.floor(Math.random() * 100),
+          }));
+          const highest = rolls.reduce((best, r) => (r.roll > best.roll ? r : best), rolls[0]);
+          winningBid = tiedBids.find((b) => b.characterId === highest.characterId)!;
+          diceRollDetail = { rolls, winnerCharacterId: highest.characterId };
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          await tx.ledgerTransaction.create({
+            data: {
+              characterId: winningBid.characterId,
+              amount: -winningBid.amount,
+              type: 'AUCTION_WIN_BURN',
+              auctionItemId: item.id,
+            },
+          });
+          await tx.auctionItem.update({
+            where: { id: item.id },
+            data: {
+              resolutionStatus: 'WON',
+              winningBidId: winningBid.id,
+              diceRollDetail: diceRollDetail as any,
+              resolvedAt: new Date(),
+            },
+          });
+        });
+      }
+
+      await this.prisma.auction.update({ where: { id: auction.id }, data: { status: 'CLOSED' } });
+    }
+
+    return { resolvedAuctions: expired.length };
+  }
+}
