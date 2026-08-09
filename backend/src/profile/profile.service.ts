@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-const DISCORD_ID_PATTERN = /^\d{17,19}$/;
+import { isValidDiscordHandle } from '../common/discord-handle.util';
 
 /**
  * Perfil self-service do membro, acessado por código de 12 caracteres (sem
@@ -43,8 +42,8 @@ export class ProfileService {
   async updateDiscordId(code: string, discordId: string) {
     const character = await this.resolveByCode(code);
     const trimmed = discordId?.trim();
-    if (!trimmed || !DISCORD_ID_PATTERN.test(trimmed)) {
-      throw new BadRequestException('ID do Discord inválido — precisa ser só números (17 a 19 dígitos).');
+    if (!trimmed || !isValidDiscordHandle(trimmed)) {
+      throw new BadRequestException('Discord inválido — use seu usuário (ex: fulano ou fulano#1234) ou o ID numérico.');
     }
     await this.prisma.character.update({ where: { id: character.id }, data: { discordId: trimmed } });
     return this.getProfile(code);
@@ -70,6 +69,33 @@ export class ProfileService {
     if (existingPending) {
       throw new BadRequestException('Você já tem uma solicitação de nível aguardando revisão.');
     }
+
+    // Personagem vinculado a uma conta GM/Vice-GM/Conselho: essa pessoa já
+    // pode editar nível livremente pela tela de Personagens, então o próprio
+    // pedido no perfil dela aplica na hora — fica registrado como já
+    // aprovado (histórico consistente), sem passar pela fila de mais
+    // ninguém (adicionado em 2026-08-09, PREMISSAS.md seção 8).
+    const linkedAccount = character.linkedUserId
+      ? await this.prisma.user.findUnique({ where: { id: character.linkedUserId } })
+      : null;
+
+    if (linkedAccount) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.character.update({ where: { id: character.id }, data: { level: requestedLevel } });
+        await tx.levelChangeRequest.create({
+          data: {
+            characterId: character.id,
+            requestedLevel,
+            proofImageUrl,
+            status: 'APPROVED',
+            reviewedById: linkedAccount.id,
+            reviewedAt: new Date(),
+          },
+        });
+      });
+      return this.getProfile(code);
+    }
+
     await this.prisma.levelChangeRequest.create({
       data: { characterId: character.id, requestedLevel, proofImageUrl },
     });

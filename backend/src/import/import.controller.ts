@@ -12,7 +12,7 @@ import { ImportService } from './import.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('imports')
 export class ImportController {
   constructor(private readonly importService: ImportService) {}

@@ -3,7 +3,7 @@ import { AnnouncementsService } from './announcements.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('announcements')
 export class AnnouncementsController {
   constructor(private readonly announcementsService: AnnouncementsService) {}

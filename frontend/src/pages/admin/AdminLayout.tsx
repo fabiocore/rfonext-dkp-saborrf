@@ -1,11 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
-import { fetchGuildSettings } from '../../api/client';
+import { fetchGuildSettings, isGmLevel } from '../../api/client';
+
+const ROLE_LABEL: Record<string, string> = { GM: 'GM', VICE_GM: 'Vice-GM', COUNCIL: 'Conselho' };
 
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
+  const gmLevel = isGmLevel(user?.role);
 
   return (
     <div className="admin-shell">
@@ -13,7 +16,7 @@ export function AdminLayout() {
         <span className="guild-name">{settingsQuery.data?.guildName ?? 'RFONext DKP'} — Admin</span>
         <div className="admin-header-right">
           <span className="admin-user">
-            {user?.username} ({user?.role === 'GM' ? 'GM' : 'Conselho'})
+            {user?.username} ({user ? ROLE_LABEL[user.role] : ''})
           </span>
           <button type="button" onClick={logout}>
             Sair
@@ -42,13 +45,13 @@ export function AdminLayout() {
           <div className="admin-nav-group">
             <span className="admin-nav-group-label">Ledger</span>
             <NavLink to="/admin/ledger/transfer">Transferência</NavLink>
-            {user?.role === 'GM' && <NavLink to="/admin/ledger/manual-adjustment">Emissão manual</NavLink>}
+            {gmLevel && <NavLink to="/admin/ledger/manual-adjustment">Emissão manual</NavLink>}
           </div>
           <div className="admin-nav-group">
             <span className="admin-nav-group-label">Sistema</span>
-            {user?.role === 'GM' && <NavLink to="/admin/council">Conselho</NavLink>}
+            {gmLevel && <NavLink to="/admin/council">Equipe</NavLink>}
             <NavLink to="/admin/settings">Configurações</NavLink>
-            {user?.role === 'GM' && <NavLink to="/admin/backup">Backup</NavLink>}
+            {gmLevel && <NavLink to="/admin/backup">Backup</NavLink>}
             <NavLink to="/admin/change-password">Minha Senha</NavLink>
           </div>
         </nav>

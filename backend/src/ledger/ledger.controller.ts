@@ -3,7 +3,7 @@ import { LedgerService } from './ledger.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('ledger')
 export class LedgerController {
   constructor(private readonly ledgerService: LedgerService) {}
@@ -29,7 +29,7 @@ export class LedgerController {
   }
 
   // GM-only: Emissão Manual (crédito ou queima avulsa) — PREMISSAS.md seção 8.
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Post('manual-adjustment')
   recordManualAdjustment(@Body() body: any, @CurrentUser() user: AuthenticatedUser) {
     return this.ledgerService.recordGmManualAdjustment({ ...body, createdById: user.id });
@@ -43,7 +43,7 @@ export class LedgerController {
   // GM-only: dispara o corte semanal fora do horário automático (ex: pra
   // recuperar uma semana em que o cron não rodou) — sempre com motivo
   // obrigatório, guardado no WeeklyTaxRun e em cada transação gerada.
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Post('weekly-tax/run-now')
   runWeeklyTaxNow(@Body('reason') reason: string, @CurrentUser() user: AuthenticatedUser) {
     return this.ledgerService.runWeeklyTax({ manual: true, reason, triggeredById: user.id });

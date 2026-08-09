@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchGuildSettings,
   fetchWeeklyTaxRuns,
+  isGmLevel,
   runWeeklyTaxNow,
   updateGuildSettings,
   updatePinnedAnnouncement,
@@ -149,6 +150,7 @@ function PinnedAnnouncementEditor({ initialText }: { initialText: string | null 
 export function SettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const gmLevel = isGmLevel(user?.role);
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
 
   const [guildName, setGuildName] = useState('');
@@ -252,9 +254,9 @@ export function SettingsPage() {
         {saved && <span className="form-success">Salvo!</span>}
       </form>
 
-      {user?.role === 'GM' && <PinnedAnnouncementEditor initialText={settingsQuery.data?.pinnedAnnouncementText ?? null} />}
+      {gmLevel && <PinnedAnnouncementEditor initialText={settingsQuery.data?.pinnedAnnouncementText ?? null} />}
 
-      {user?.role === 'GM' && (
+      {gmLevel && (
         <WeeklyTaxManualTrigger
           weekdayLabel={WEEKDAYS[weeklyTaxWeekdayLocal]}
           timeLabel={weeklyTaxTimeLocal}

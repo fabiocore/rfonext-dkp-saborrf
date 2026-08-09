@@ -14,7 +14,7 @@ export class GuildSettingsController {
     return this.guildSettingsService.getSettings();
   }
 
-  @Roles('GM', 'COUNCIL')
+  @Roles('GM', 'VICE_GM', 'COUNCIL')
   @Put()
   updateSettings(@Body() body: Record<string, unknown>) {
     return this.guildSettingsService.updateSettings(body);
@@ -22,7 +22,7 @@ export class GuildSettingsController {
 
   // GM-only: aviso fixo em destaque na home pública — "somente eu" (o GM),
   // nunca o Conselho.
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Put('pinned-announcement')
   updatePinnedAnnouncement(@Body('text') text: string) {
     return this.guildSettingsService.updatePinnedAnnouncement(text);

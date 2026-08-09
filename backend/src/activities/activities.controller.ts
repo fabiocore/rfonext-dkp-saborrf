@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('activities')
 export class ActivitiesController {
   constructor(private readonly activitiesService: ActivitiesService) {}

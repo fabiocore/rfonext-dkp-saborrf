@@ -1,14 +1,18 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  fetchAllUsers,
   fetchCharacters,
   fetchGuildSettings,
   regenerateProfileCode,
   updateCharacter,
   type Character,
   type MembershipStatus,
+  type UserSummary,
 } from '../../api/client';
 import { EyeIcon } from '../../components/EyeIcon';
+
+const ROLE_LABEL: Record<string, string> = { GM: 'GM', VICE_GM: 'Vice-GM', COUNCIL: 'Conselho' };
 
 function CopyCodeButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -72,10 +76,12 @@ function ProfileCodeCell({ characterId, code, gameName }: { characterId: string;
 function CharacterRow({
   character,
   allPrincipals,
+  allUsers,
   currencyAbbr,
 }: {
   character: Character;
   allPrincipals: Character[];
+  allUsers: UserSummary[];
   currencyAbbr: string;
 }) {
   const queryClient = useQueryClient();
@@ -84,6 +90,7 @@ function CharacterRow({
   const [linkedPrincipalId, setLinkedPrincipalId] = useState(character.linkedPrincipalId ?? '');
   const [membershipStatus, setMembershipStatus] = useState<MembershipStatus>(character.membershipStatus);
   const [discordId, setDiscordId] = useState(character.discordId ?? '');
+  const [linkedUserId, setLinkedUserId] = useState(character.linkedUserId ?? '');
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -93,6 +100,7 @@ function CharacterRow({
         linkedPrincipalId: status === 'ALT' && linkedPrincipalId ? linkedPrincipalId : null,
         membershipStatus,
         discordId: discordId.trim() || null,
+        linkedUserId: status === 'PRINCIPAL' && linkedUserId ? linkedUserId : null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['characters'] });
@@ -105,7 +113,8 @@ function CharacterRow({
     String(level) !== String(character.level ?? '') ||
     linkedPrincipalId !== (character.linkedPrincipalId ?? '') ||
     membershipStatus !== character.membershipStatus ||
-    discordId.trim() !== (character.discordId ?? '');
+    discordId.trim() !== (character.discordId ?? '') ||
+    linkedUserId !== (character.linkedUserId ?? '');
 
   const receivesBrc = status === 'PRINCIPAL' && membershipStatus === 'ACTIVE';
 
@@ -166,7 +175,7 @@ function CharacterRow({
         <input
           value={discordId}
           onChange={(e) => setDiscordId(e.target.value)}
-          placeholder="ID numérico"
+          placeholder="Usuário ou ID"
           style={{ width: 130 }}
         />
       </td>
@@ -175,6 +184,20 @@ function CharacterRow({
           <ProfileCodeCell characterId={character.id} code={character.profileAccessCode} gameName={character.gameName} />
         ) : (
           '—'
+        )}
+      </td>
+      <td>
+        {status === 'PRINCIPAL' ? (
+          <select value={linkedUserId} onChange={(e) => setLinkedUserId(e.target.value)}>
+            <option value="">— nenhuma —</option>
+            {allUsers.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.username} ({ROLE_LABEL[u.role] ?? u.role})
+              </option>
+            ))}
+          </select>
+        ) : (
+          '-'
         )}
       </td>
       <td>
@@ -189,6 +212,7 @@ function CharacterRow({
 export function CharactersPage() {
   const charactersQuery = useQuery({ queryKey: ['characters'], queryFn: fetchCharacters });
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
+  const usersQuery = useQuery({ queryKey: ['all-users'], queryFn: fetchAllUsers });
   const currencyAbbr = settingsQuery.data?.currencyAbbr ?? 'BRC';
 
   const principals = useMemo(
@@ -210,8 +234,10 @@ export function CharactersPage() {
         mesmo depois que o personagem sai, pra consulta histórica. O "Código de perfil" (12 caracteres, gerado
         automaticamente pra todo Principal) dá acesso à tela pública de perfil — compartilhe manualmente com o
         membro (Discord etc.); lá ele informa o próprio ID do Discord, troca o avatar, e pede atualização de nível
-        (sempre com print, sempre passando por aprovação sua ou do conselho antes de valer — ver "Solicitações de
-        Nível" no menu).
+        (sempre com print). Pedido de nível passa por aprovação — <strong>exceto</strong> se o personagem estiver
+        vinculado a uma conta de GM/Vice-GM/Conselho ("Conta vinculada" abaixo): nesse caso aplica na hora, porque
+        essa pessoa já pode editar nível livremente por aqui mesmo. Sem essa coluna, todo pedido cai em
+        "Solicitações de Nível" no menu, como sempre.
       </p>
 
       <table className="data-table">
@@ -227,12 +253,19 @@ export function CharactersPage() {
             <th>Saldo</th>
             <th>Discord ID</th>
             <th>Código de perfil</th>
+            <th>Conta vinculada</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           {charactersQuery.data?.map((character) => (
-            <CharacterRow key={character.id} character={character} allPrincipals={principals} currencyAbbr={currencyAbbr} />
+            <CharacterRow
+              key={character.id}
+              character={character}
+              allPrincipals={principals}
+              allUsers={usersQuery.data ?? []}
+              currencyAbbr={currencyAbbr}
+            />
           ))}
         </tbody>
       </table>

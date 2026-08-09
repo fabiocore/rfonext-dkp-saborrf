@@ -4,6 +4,19 @@
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
 
+## 2026-08-09 — Papel Vice-GM, vínculo personagem↔conta (nível auto-aprovado) e ID do Discord mais flexível
+
+**Contexto**: 3 pedidos na mesma mensagem, depois de testar o ambiente dev. (1) ID do Discord rejeitava `FabioSilva#5674` (formato usuário#tag) — usuário achou a validação errada demais. (2) GM/Conselho já editam nível livremente pela tela de Personagens, mas o próprio pedido deles via `/perfil` ainda caía na fila de aprovação — queria que aplicasse na hora nesse caso. (3) Pedido de um papel novo "Vice-GM" com os mesmos direitos do GM em tudo, e uma forma de marcar na tela de Personagens quem é GM/Vice-GM/Conselho. Perguntei 3 pontos antes de implementar (respostas do usuário): aceitar usuário/tag do Discord além do ID numérico; vincular personagem à conta de login existente (não um campo solto); sem limite de quantidade de contas no sistema.
+
+**ID do Discord mais flexível**: `isValidDiscordHandle` (novo util compartilhado, `backend/src/common/discord-handle.util.ts` — antes a regex vivia duplicada em `characters.service.ts` e `profile.service.ts`) aceita ID numérico (17-19 dígitos) **ou** usuário/tag (`fulano`, `fulano#1234`). Textos de ajuda atualizados nas 3 línguas explicando as duas opções.
+
+**Papel Vice-GM**: novo valor no enum `UserRole` (migration `20260809200000_vice_gm_and_character_link`) com **os mesmos direitos do GM em tudo** — adicionado em todo `@Roles('GM')`/`@Roles('GM','COUNCIL')` do backend (conselho, emissão manual, corte semanal manual, aviso fixo, backup, force-delete de leilão, e o caso especial de publicar leilão direto sem precisar de 2 aprovações). `UsersController`/`UsersService` generalizados de "só Conselho" pra gerenciar Conselho+Vice-GM juntos (`/users/staff`, antes `/users/council`) — tela renomeada pra "Equipe (Conselho e Vice-GM)", com seletor de papel ao criar. Sem limite de quantidade de contas (1 Vice-GM/6 conselheiros é só o planejamento da guild, não uma trava do sistema).
+
+**Vínculo personagem↔conta + nível auto-aprovado**: novo campo `Character.linkedUserId` (FK única, opcional, mesma migration) — configurado na tela de Personagens via dropdown (`GET /users/all`, lista mínima de todas as contas). Quando o personagem vinculado a uma conta GM/Vice-GM/Conselho pede atualização de nível pelo **próprio** perfil público, `ProfileService.submitLevelChangeRequest` aplica o nível na hora (transação: `Character.level` atualizado + `LevelChangeRequest` já criado como `APPROVED`, com `reviewedById` da própria conta) — sem passar pela fila de mais ninguém. Personagem sem vínculo continua sempre passando pela aprovação normal. Mensagem de sucesso na tela de perfil diferencia os dois casos ("aguarde revisão" vs. "aplicou na hora").
+
+**Testado ao vivo, ponta a ponta**: criei uma conta Vice-GM de teste, vinculei ao personagem real da Agrute, pedi atualização de nível pelo perfil público dela — aplicou na hora (nível mudou de 66→90, `LevelChangeRequest` já `APPROVED`); testei que um personagem sem vínculo (BASSON) continua caindo em `PENDING` normalmente; testei bloqueio de vínculo duplicado (2º personagem tentando vincular à mesma conta → erro claro); testei Discord com usuário+tag, só usuário, e um valor realmente inválido (rejeitado); testei que Vice-GM consegue acessar endpoints antes GM-only (`/users/staff`, `/admin/backup`) e que Conselho continua bloqueado deles (403). Tudo revertido ao final (contas de teste apagadas, vínculo e níveis voltados ao estado original).
+
+
 ## 2026-08-09 — Fix: pedido de nível "não aparecia" na tela de perfil
 
 **Contexto**: usuário reportou que testou o pedido de atualização de nível no próprio personagem e "não apareceu nada" depois de enviar.

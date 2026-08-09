@@ -12,6 +12,7 @@ import {
   fetchProtections,
   forceDeleteAuction,
   forceDeleteAuctionItem,
+  isGmLevel,
   removeAuctionItem,
   setAuctionParticipants,
   setAuctionSchedule,
@@ -120,6 +121,7 @@ export function AuctionBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const gmLevel = isGmLevel(user?.role);
   const queryClient = useQueryClient();
 
   const auctionQuery = useQuery({
@@ -303,12 +305,12 @@ export function AuctionBuilderPage() {
         {auction.closeReason && <> — Motivo do encerramento: {auction.closeReason}</>}
       </p>
 
-      {auction.status === 'OPEN' && user?.role === 'GM' && (
+      {auction.status === 'OPEN' && gmLevel && (
         <button type="button" onClick={handleCloseAuction} disabled={closeAuctionMutation.isPending}>
           Encerrar leilão inteiro
         </button>
       )}{' '}
-      {user?.role === 'GM' && (
+      {gmLevel && (
         <button
           type="button"
           onClick={() => handleForceDeleteAuction(auction.title)}
@@ -355,12 +357,12 @@ export function AuctionBuilderPage() {
                     Remover
                   </button>
                 )}
-                {!editable && auction.status === 'OPEN' && item.resolutionStatus === 'PENDING' && user?.role === 'GM' && (
+                {!editable && auction.status === 'OPEN' && item.resolutionStatus === 'PENDING' && gmLevel && (
                   <button type="button" onClick={() => handleCancelItem(item.id, item.name)} disabled={cancelItemMutation.isPending}>
                     Encerrar item
                   </button>
                 )}{' '}
-                {user?.role === 'GM' && (
+                {gmLevel && (
                   <button
                     type="button"
                     onClick={() => handleForceDeleteItem(item.id, item.name)}
@@ -451,14 +453,15 @@ export function AuctionBuilderPage() {
 
           <h3>Publicação</h3>
           <p className="subtitle">
-            GM publica direto. Conselho precisa de 2 aprovações distintas — aprovações até agora: {auction.approvals.length}/2.
+            GM/Vice-GM publica direto. Conselho precisa de 2 aprovações distintas — aprovações até agora:{' '}
+            {auction.approvals.length}/2.
           </p>
           <button
             type="button"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || !auction.scheduledEndAt || (user?.role === 'COUNCIL' && alreadyApproved)}
+            disabled={approveMutation.isPending || !auction.scheduledEndAt || (!gmLevel && alreadyApproved)}
           >
-            {user?.role === 'GM' ? 'Publicar agora' : alreadyApproved ? 'Você já aprovou' : 'Aprovar publicação'}
+            {gmLevel ? 'Publicar agora' : alreadyApproved ? 'Você já aprovou' : 'Aprovar publicação'}
           </button>{' '}
           <button
             type="button"

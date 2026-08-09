@@ -40,6 +40,7 @@ export function ProfilePage() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [levelError, setLevelError] = useState<string | null>(null);
   const [levelSuccess, setLevelSuccess] = useState(false);
+  const [levelAutoApproved, setLevelAutoApproved] = useState(false);
 
   const discordMutation = useMutation({
     mutationFn: () => updateProfileDiscordId(code!, discordId.trim()),
@@ -79,6 +80,7 @@ export function ProfilePage() {
       setRequestedLevel('');
       setProofFile(null);
       setLevelError(null);
+      setLevelAutoApproved(data.levelChangeRequests[0]?.status === 'APPROVED');
       setLevelSuccess(true);
       setTimeout(() => setLevelSuccess(false), 4000);
     },
@@ -197,7 +199,11 @@ export function ProfilePage() {
             {character.level ? t('profile.levelCurrent', { level: character.level }) : t('profile.levelNoLevel')}
           </p>
 
-          {levelSuccess && <p className="form-success">{t('profile.levelSubmitted')}</p>}
+          {levelSuccess && (
+            <p className="form-success">
+              {t(levelAutoApproved ? 'profile.levelAutoApproved' : 'profile.levelSubmitted')}
+            </p>
+          )}
 
           {pendingRequest ? (
             <p className="subtitle">

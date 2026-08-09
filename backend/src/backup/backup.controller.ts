@@ -8,7 +8,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 // Exclusivo do GM — backup/restore afeta o banco inteiro, não só a guild
 // visível na UI (não existe conceito de "escopo por guild" nesse projeto,
 // PREMISSAS.md seção 8: cada guild é um deploy próprio).
-@Roles('GM')
+@Roles('GM', 'VICE_GM')
 @Controller('admin/backup')
 export class BackupController {
   constructor(private readonly backupService: BackupService) {}

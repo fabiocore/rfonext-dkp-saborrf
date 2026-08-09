@@ -6,7 +6,7 @@ import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.
 // Fila de aprovação de mudança de nível pedida pelo próprio membro via
 // /perfil — GM e conselho revisam (mesmo nível de acesso que o resto do
 // cadastro de personagens, PREMISSAS.md seção 8).
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('level-requests')
 export class LevelRequestsController {
   constructor(private readonly profileService: ProfileService) {}

@@ -9,7 +9,7 @@ const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 
 // Upload de prints de comprovação e imagens de evento/item — usados pelas
 // telas de leilão, transferência, evento manual e emissão manual do GM.
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('uploads')
 export class UploadsController {
   @Post()

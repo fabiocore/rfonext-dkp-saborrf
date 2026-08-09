@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { CharactersService } from './characters.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('characters')
 export class CharactersController {
   constructor(private readonly charactersService: CharactersService) {}

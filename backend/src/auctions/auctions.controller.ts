@@ -3,7 +3,7 @@ import { AuctionsService } from './auctions.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser, AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
-@Roles('GM', 'COUNCIL')
+@Roles('GM', 'VICE_GM', 'COUNCIL')
 @Controller('auctions')
 export class AuctionsController {
   constructor(private readonly auctionsService: AuctionsService) {}
@@ -61,13 +61,13 @@ export class AuctionsController {
   }
 
   // GM-only: encerrar item/leilão antes da hora exige justificativa (PREMISSAS.md seção 7).
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Post(':id/items/:itemId/cancel')
   cancelItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body('reason') reason: string) {
     return this.auctionsService.cancelItem(id, itemId, reason);
   }
 
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Post(':id/close')
   closeAuction(@Param('id') id: string, @Body('reason') reason: string) {
     return this.auctionsService.closeAuction(id, reason);
@@ -77,13 +77,13 @@ export class AuctionsController {
   // (rascunho, aberto ou encerrado), sempre com motivo obrigatório. Se
   // algum item já tinha sido vencido (queima real), a queima nunca é
   // apagada — uma reversão é criada (ver AuctionsService.forceDeleteItem).
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Delete(':id/force')
   forceDeleteAuction(@Param('id') id: string, @Body('reason') reason: string) {
     return this.auctionsService.forceDeleteAuction(id, reason);
   }
 
-  @Roles('GM')
+  @Roles('GM', 'VICE_GM')
   @Delete(':id/items/:itemId/force')
   forceDeleteItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body('reason') reason: string) {
     return this.auctionsService.forceDeleteItem(id, itemId, reason);

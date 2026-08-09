@@ -241,7 +241,7 @@ export class AuctionsService {
       throw new BadRequestException('A data/hora de término precisa ser no futuro — ajuste antes de publicar.');
     }
 
-    if (user.role === 'GM') {
+    if (user.role === 'GM' || user.role === 'VICE_GM') {
       return this.publish(auctionId);
     }
 

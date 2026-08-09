@@ -7,7 +7,7 @@ import { AuthenticatedUser } from '../decorators/current-user.decorator';
 interface JwtPayload {
   sub: string;
   username: string;
-  role: 'GM' | 'COUNCIL';
+  role: 'GM' | 'VICE_GM' | 'COUNCIL';
 }
 
 @Injectable()

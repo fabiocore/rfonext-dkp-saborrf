@@ -37,7 +37,12 @@ apiClient.interceptors.response.use(
   },
 );
 
-export type UserRole = 'GM' | 'COUNCIL';
+export type UserRole = 'GM' | 'VICE_GM' | 'COUNCIL';
+
+/** Vice-GM tem os mesmos direitos do GM em tudo (PREMISSAS.md seção 8). */
+export function isGmLevel(role: UserRole | undefined): boolean {
+  return role === 'GM' || role === 'VICE_GM';
+}
 
 export interface GuildSettings {
   guildName: string;
@@ -73,6 +78,7 @@ export interface Character {
   discordId: string | null;
   avatarUrl: string | null;
   profileAccessCode: string | null;
+  linkedUserId: string | null;
 }
 
 export interface ActivityComponentRef {
@@ -128,12 +134,18 @@ export interface ImportBatch {
   uploadedAt: string;
 }
 
-export interface CouncilUser {
+export interface StaffUser {
   id: string;
   username: string;
   role: UserRole;
   isActive: boolean;
   lastLoginAt: string | null;
+}
+
+export interface UserSummary {
+  id: string;
+  username: string;
+  role: UserRole;
 }
 
 export async function login(username: string, password: string) {
@@ -293,23 +305,31 @@ export async function uploadImport(
   return data;
 }
 
-export async function fetchCouncilUsers(): Promise<CouncilUser[]> {
-  const { data } = await apiClient.get<CouncilUser[]>('/users/council');
+export async function fetchStaffUsers(): Promise<StaffUser[]> {
+  const { data } = await apiClient.get<StaffUser[]>('/users/staff');
   return data;
 }
 
-export async function createCouncilUser(username: string): Promise<{ user: CouncilUser; generatedPassword: string }> {
-  const { data } = await apiClient.post('/users/council', { username });
+export async function createStaffUser(
+  username: string,
+  role: 'COUNCIL' | 'VICE_GM',
+): Promise<{ user: StaffUser; generatedPassword: string }> {
+  const { data } = await apiClient.post('/users/staff', { username, role });
   return data;
 }
 
-export async function resetCouncilPassword(id: string): Promise<{ user: CouncilUser; generatedPassword: string }> {
-  const { data } = await apiClient.post(`/users/council/${id}/reset-password`);
+export async function resetStaffPassword(id: string): Promise<{ user: StaffUser; generatedPassword: string }> {
+  const { data } = await apiClient.post(`/users/staff/${id}/reset-password`);
   return data;
 }
 
-export async function setCouncilActive(id: string, isActive: boolean): Promise<CouncilUser> {
-  const { data } = await apiClient.patch<CouncilUser>(`/users/council/${id}/active`, { isActive });
+export async function setStaffActive(id: string, isActive: boolean): Promise<StaffUser> {
+  const { data } = await apiClient.patch<StaffUser>(`/users/staff/${id}/active`, { isActive });
+  return data;
+}
+
+export async function fetchAllUsers(): Promise<UserSummary[]> {
+  const { data } = await apiClient.get<UserSummary[]>('/users/all');
   return data;
 }
 

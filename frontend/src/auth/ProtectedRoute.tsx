@@ -6,7 +6,7 @@ export function ProtectedRoute({ gmOnly = false }: { gmOnly?: boolean }) {
 
   if (isLoading) return null;
   if (!user) return <Navigate to="/admin/login" replace />;
-  if (gmOnly && user.role !== 'GM') return <Navigate to="/admin" replace />;
+  if (gmOnly && user.role !== 'GM' && user.role !== 'VICE_GM') return <Navigate to="/admin" replace />;
 
   return <Outlet />;
 }
