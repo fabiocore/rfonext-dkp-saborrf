@@ -10,10 +10,10 @@
  * desses continuar reconhecido como preset selecionado.
  */
 const STYLE_SEEDS: Record<string, string[]> = {
-  adventurer: ['Aurora', 'Blaze', 'Comet', 'Draco', 'Ember', 'Frost', 'Nova', 'Storm'],
-  bottts: ['Circuit', 'Volt', 'Gizmo', 'Byte', 'Pixel', 'Turbo', 'Nano', 'Cyber'],
-  'pixel-art': ['Retro8', 'Arcade', 'Quest', 'Sprite', 'Level', 'Combo', 'Pixelia', 'Bitmap'],
-  personas: ['Sol', 'Luna', 'Terra', 'Vega', 'Orion', 'Atlas', 'Nyx', 'Rhea'],
+  adventurer: ['Aurora', 'Blaze', 'Comet', 'Draco', 'Ember', 'Frost', 'Nova', 'Storm', 'Zephyr'],
+  bottts: ['Circuit', 'Volt', 'Gizmo', 'Byte', 'Pixel', 'Turbo', 'Nano', 'Cyber', 'Servo'],
+  'pixel-art': ['Retro8', 'Arcade', 'Quest', 'Sprite', 'Level', 'Combo', 'Pixelia', 'Bitmap', 'Joystick'],
+  personas: ['Sol', 'Luna', 'Terra', 'Vega', 'Orion', 'Atlas', 'Nyx', 'Rhea', 'Iris'],
 };
 
 export const AVATAR_PRESETS = Object.entries(STYLE_SEEDS).flatMap(([style, seeds]) =>

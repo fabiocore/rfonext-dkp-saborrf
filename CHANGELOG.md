@@ -1,5 +1,15 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Avatares: 32 → 36 + badge de saldo centralizado e verde
+
+**Avatares**: mais 1 seed em cada um dos 4 estilos (9 cada agora) — `Zephyr` (adventurer), `Servo` (bottts), `Joystick` (pixel-art), `Iris` (personas).
+
+**Badge de saldo**: usuário pediu pra mover da lateral (colado no nome) pro **centro** da barra do topo, e trocar a cor de roxo pra **verde**. Centralizar de verdade (não só "no meio do espaço sobrando" do `justify-content: space-between`, que desloca dependendo da largura do nome/bandeiras) exigiu `position: absolute` + `transform: translate(-50%,-50%)` numa nova classe `.app-header-centered-badge`, com `.app-header` ganhando `position: relative`. Cor trocada pra reaproveitar `.badge-yes` (verde, já usado nos badges "Recebe DKP") em vez do `.badge-accent` novo (removido — ficou sem uso).
+
+**Testado ao vivo**: confirmei 36 presets no endpoint; visualmente em 1280×720 e 375×700 (mobile) — badge centralizado sem sobrepor nome nem bandeiras nos dois tamanhos.
+
+## 2026-08-12 — Avatares: 26 → 32 (balanceado, 8 por estilo)
+
 ## 2026-08-12 — Avatares: 26 → 32 (balanceado, 8 por estilo)
 
 Pedido rápido depois da rodada anterior: mais opções ainda. `avatar-presets.ts` foi de 6 pra 8 seeds em `bottts`, `pixel-art` e `personas` — agora os 4 estilos têm 8 cada (32 no total, era 6+6+6+8 desbalanceado). Testado: `/api/public/profile/avatar-presets` retornando as 32 opções.

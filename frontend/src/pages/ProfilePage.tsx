@@ -121,11 +121,9 @@ export function ProfilePage() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <span className="guild-name">
-          {character.gameName}
-          <span className="badge badge-accent">
-            {character.balance} {settingsQuery.data?.currencyAbbr}
-          </span>
+        <span className="guild-name">{character.gameName}</span>
+        <span className="badge badge-yes app-header-centered-badge">
+          {character.balance} {settingsQuery.data?.currencyAbbr}
         </span>
         <LanguageSwitcher />
       </header>

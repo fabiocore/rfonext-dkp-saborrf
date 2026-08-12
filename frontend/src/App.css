@@ -18,6 +18,16 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  position: relative;
+}
+
+/* Centralizado de verdade na barra (não só "no meio do espaço sobrando"
+   do space-between, que desloca dependendo da largura dos vizinhos). */
+.app-header-centered-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* Header com navegação (site público): nome da guild numa linha própria em
@@ -562,12 +572,6 @@ button:disabled {
 .badge-yes {
   background: var(--success-bg);
   color: var(--success);
-  margin-left: 0;
-}
-
-.badge-accent {
-  background: var(--accent-bg);
-  color: var(--accent);
   margin-left: 0;
 }
 
