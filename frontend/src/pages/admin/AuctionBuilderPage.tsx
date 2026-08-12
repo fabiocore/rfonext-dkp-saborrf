@@ -332,9 +332,16 @@ export function AuctionBuilderPage() {
                 {item.resolutionStatus === 'PENDING' && 'Em andamento'}
                 {item.resolutionStatus === 'UNCLAIMED' && 'Não reclamado — será randomizado no jogo'}
                 {item.resolutionStatus === 'WON' && item.winningBid && (
-                  <strong>
-                    {item.winningBid.character.gameName} — {item.winningBid.amount}
-                  </strong>
+                  <>
+                    <strong>
+                      {item.winningBid.character.gameName} — {item.winningBid.amount}
+                    </strong>
+                    {Array.isArray((item.diceRollDetail as any)?.rolls) && (
+                      <div className="subtitle">
+                        Desempate no dado: {(item.diceRollDetail as any).rolls.map((r: any) => `${r.gameName} ${r.roll}`).join(', ')}
+                      </div>
+                    )}
+                  </>
                 )}
                 {item.resolutionStatus === 'CANCELLED' && `Encerrado pelo GM: ${item.cancelReason}`}
               </td>

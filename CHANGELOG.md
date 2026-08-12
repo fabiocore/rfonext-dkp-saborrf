@@ -1,5 +1,15 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Detalhe do dado de desempate também na tela admin do leilão
+
+**Contexto**: usuário levantou um cenário pra testar — dois jogadores com o mesmo saldo disponível (150 BRC) disputando o mesmo item, o segundo sem conseguir dar +1 por falta de saldo. Simulei ponta a ponta (dois personagens de teste, 150 BRC cada, os dois dando all-in de 150, leilão encerrado manualmente) e confirmei: o segundo lance de 150 é **aceito mesmo empatando** com o líder — a validação real do backend exige só "≥ líder atual", não "líder + 1" (o "+1" é só uma sugestão da tela, não uma trava). Isso é necessário: se fosse trava de +1, o segundo jogador nunca conseguiria forçar o desempate. Ao encerrar, o dado rodou automaticamente (15 vs 77), só o vencedor teve o valor queimado no ledger, e o perdedor manteve o saldo intacto.
+
+**Gap encontrado durante o teste**: a tela pública do leilão já mostrava os valores do dado de cada participante empatado (`auctions.diceTiebreak`), mas a tela **admin** (`AuctionBuilderPage.tsx`) só mostrava vencedor + valor, sem o detalhe do dado. Corrigido — agora mostra "Desempate no dado: Nome1 valor1, Nome2 valor2" abaixo do vencedor, mesma fonte de dados (`item.diceRollDetail`) já exposta pela API.
+
+Corrigido também um trecho desatualizado do `PREMISSAS.md` (seção 7) que descrevia o "+1" como obrigatório pra superar o líder — não reflete o comportamento real desde sempre, só foi notado agora com esse teste.
+
+**Testado ao vivo**: simulação completa (personagens de teste, all-in empatado, encerramento manual, dado, ledger, e verificação visual da tela admin no navegador) — dados de teste removidos ao final.
+
 > Histórico de alterações do projeto, pra consulta futura e troubleshooting.
 > Formato: mais recente no topo. Cada entrada linka o(s) arquivo(s) principais mexidos quando relevante.
 > **A partir de 2026-08-09, todo pedido de mudança do usuário deve gerar uma entrada aqui.**
