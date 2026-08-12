@@ -7,13 +7,16 @@
  * arbitrária. Mistura 4 estilos do DiceBear (pedido do usuário, 2026-08-12,
  * pra dar variedade de verdade, não só mais rostos parecidos) — os seeds do
  * estilo "adventurer" são os mesmos de antes, pra quem já tinha escolhido um
- * desses continuar reconhecido como preset selecionado.
+ * desses continuar reconhecido como preset selecionado. `pixel-art` e
+ * `personas` foram trocados por `avataaars`/`micah` no mesmo dia — usuário
+ * achou os dois primeiros feios; escolheu os substitutos numa prévia visual
+ * antes de trocar (ver CHANGELOG.md).
  */
 const STYLE_SEEDS: Record<string, string[]> = {
   adventurer: ['Aurora', 'Blaze', 'Comet', 'Draco', 'Ember', 'Frost', 'Nova', 'Storm', 'Zephyr'],
   bottts: ['Circuit', 'Volt', 'Gizmo', 'Byte', 'Pixel', 'Turbo', 'Nano', 'Cyber', 'Servo'],
-  'pixel-art': ['Retro8', 'Arcade', 'Quest', 'Sprite', 'Level', 'Combo', 'Pixelia', 'Bitmap', 'Joystick'],
-  personas: ['Sol', 'Luna', 'Terra', 'Vega', 'Orion', 'Atlas', 'Nyx', 'Rhea', 'Iris'],
+  avataaars: ['Jasper', 'Wren', 'Sage', 'River', 'Coral', 'Ash', 'Wilder', 'Indigo', 'Robin'],
+  micah: ['Milo', 'Nora', 'Theo', 'Ivy', 'Finn', 'Greta', 'Otto', 'Maya', 'Silas'],
 };
 
 export const AVATAR_PRESETS = Object.entries(STYLE_SEEDS).flatMap(([style, seeds]) =>

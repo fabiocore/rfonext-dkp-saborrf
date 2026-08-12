@@ -1,5 +1,15 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Trocado pixel-art/personas por avataaars/micah (feedback visual real)
+
+**Contexto**: usuário revisou os 36 avatares publicados na rodada anterior e reportou que 2 dos 4 estilos (`pixel-art` e `personas`) ficaram feios comparado com os outros dois (`adventurer`, `bottts`). Em vez de chutar substitutos, montei uma prévia (artifact HTML, tokens visuais do próprio app, SVGs reais embutidos inline — nenhuma chamada externa) com 6 estilos candidatos do DiceBear lado a lado (avataaars, notionists, micah, open-peeps, big-smile, croodles), 4 exemplos cada. Usuário escolheu **avataaars** e **micah**.
+
+**Fix**: `avatar-presets.ts` — `pixel-art`/`personas` trocados por `avataaars`/`micah`, 9 seeds cada (mesma contagem de antes, 36 no total). Personagens que já tinham escolhido um avatar dos estilos removidos **não quebram** — a URL antiga continua resolvendo normalmente (DiceBear ainda serve esses estilos, só paramos de oferecer no grid); só não vão mais aparecer com o anel de "selecionado" se abrirem a tela de novo.
+
+**Testado ao vivo**: confirmei os 2 estilos novos resolvendo (HTTP 200) antes de trocar; endpoint de presets retornando as 36 chaves nos 4 estilos certos; conferido visualmente no navegador.
+
+## 2026-08-12 — Avatares: 32 → 36 + badge de saldo centralizado e verde
+
 ## 2026-08-12 — Avatares: 32 → 36 + badge de saldo centralizado e verde
 
 **Avatares**: mais 1 seed em cada um dos 4 estilos (9 cada agora) — `Zephyr` (adventurer), `Servo` (bottts), `Joystick` (pixel-art), `Iris` (personas).
