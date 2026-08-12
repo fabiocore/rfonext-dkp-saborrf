@@ -1,5 +1,11 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Avatares: 26 → 32 (balanceado, 8 por estilo)
+
+Pedido rápido depois da rodada anterior: mais opções ainda. `avatar-presets.ts` foi de 6 pra 8 seeds em `bottts`, `pixel-art` e `personas` — agora os 4 estilos têm 8 cada (32 no total, era 6+6+6+8 desbalanceado). Testado: `/api/public/profile/avatar-presets` retornando as 32 opções.
+
+## 2026-08-12 — Saldo de BRC no perfil + avatares com mais variedade (8 → 26, 4 estilos)
+
 ## 2026-08-12 — Saldo de BRC no perfil + avatares com mais variedade (8 → 26, 4 estilos)
 
 **Pedido**: usuário pediu pra mostrar o saldo de BRC na tela de perfil (`/perfil/:código`) e aumentar as opções de avatar, misturando estilos diferentes (não só mais rostos parecidos no estilo único que já existia).

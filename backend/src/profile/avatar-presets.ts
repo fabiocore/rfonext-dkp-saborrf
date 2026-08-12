@@ -11,9 +11,9 @@
  */
 const STYLE_SEEDS: Record<string, string[]> = {
   adventurer: ['Aurora', 'Blaze', 'Comet', 'Draco', 'Ember', 'Frost', 'Nova', 'Storm'],
-  bottts: ['Circuit', 'Volt', 'Gizmo', 'Byte', 'Pixel', 'Turbo'],
-  'pixel-art': ['Retro8', 'Arcade', 'Quest', 'Sprite', 'Level', 'Combo'],
-  personas: ['Sol', 'Luna', 'Terra', 'Vega', 'Orion', 'Atlas'],
+  bottts: ['Circuit', 'Volt', 'Gizmo', 'Byte', 'Pixel', 'Turbo', 'Nano', 'Cyber'],
+  'pixel-art': ['Retro8', 'Arcade', 'Quest', 'Sprite', 'Level', 'Combo', 'Pixelia', 'Bitmap'],
+  personas: ['Sol', 'Luna', 'Terra', 'Vega', 'Orion', 'Atlas', 'Nyx', 'Rhea'],
 };
 
 export const AVATAR_PRESETS = Object.entries(STYLE_SEEDS).flatMap(([style, seeds]) =>
