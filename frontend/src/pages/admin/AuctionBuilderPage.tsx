@@ -19,6 +19,7 @@ import {
 } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { ImageUploadInput } from '../../components/ImageUploadInput';
+import { TableScroll } from '../../components/TableScroll';
 
 /** Converte um ISO (UTC) pro valor de um <input type="datetime-local">, no fuso de quem está vendo. */
 function isoToDatetimeLocalValue(iso: string | null): string {
@@ -307,7 +308,7 @@ export function AuctionBuilderPage() {
 
       <h3>Itens</h3>
       {editable && <AddItemForm auctionId={auction.id} />}
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -372,7 +373,7 @@ export function AuctionBuilderPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
 
       <h3>Participantes</h3>
       {editable ? (
@@ -403,7 +404,7 @@ export function AuctionBuilderPage() {
           </button>
         </>
       ) : (
-        <div className="table-scroll">
+        <TableScroll>
         <table className="data-table">
           <thead>
             <tr>
@@ -422,7 +423,7 @@ export function AuctionBuilderPage() {
             ))}
           </tbody>
         </table>
-        </div>
+        </TableScroll>
       )}
 
       {editable && (

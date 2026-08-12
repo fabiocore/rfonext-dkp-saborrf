@@ -1,5 +1,15 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Setas de rolagem nas tabelas (scrollbar sozinha não bastava)
+
+**Contexto**: mesmo depois da scrollbar estilizada (entrada anterior), usuário reportou que nem clicar-e-arrastar funcionava mais. Em vez de insistir em depender de arrastar a scrollbar (varia demais entre mouse/SO/navegador), pedido explícito: incluir rolagem lateral com botões.
+
+**Fix**: novo componente `frontend/src/components/TableScroll.tsx` — substitui a `<div className="table-scroll">` crua usada nas 13 tabelas (12 páginas). Mostra dois botões, "← Rolar" e "Rolar →", **fixos logo acima da tabela** (não no fim da lista) — aparecem só quando há conteúdo pra rolar naquela direção (ficam desabilitados/ocultos nas pontas), e cada clique rola 320px com animação suave (`scrollBy({ left, behavior: 'smooth' })`). Não depende de arrastar nada, clique simples resolve.
+
+**Testado ao vivo**: em viewport 1280×720, cliquei "Rolar →" repetidas vezes na tela Personagens — tabela rolou revelando as colunas seguintes (Principal vinculado, Última vez visto, Interação, DKP, Saldo, Discord ID) e "← Rolar" ficou habilitado; cliquei "← Rolar" e voltou ao início, com "← Rolar" desabilitado de novo. `tsc --noEmit` e `npm run build` limpos.
+
+## 2026-08-12 — Tabelas do admin: scroll horizontal descobrível + texto parando de quebrar
+
 ## 2026-08-12 — Tabelas do admin: scroll horizontal descobrível + texto parando de quebrar
 
 **Contexto**: usuário reportou, com print, que em notebook (tela menor) a tabela de Personagens não dava nenhuma pista de que dava pra rolar pra direita — só descobriu arrastando às cegas — e que cabeçalhos/botões apareciam quebrados em duas linhas ("ÚLTIMA VEZ" / "VISTO", "GERAR" / "NOVO").

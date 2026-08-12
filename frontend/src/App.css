@@ -144,6 +144,27 @@
   border: 2px solid var(--bg-elevated-2);
 }
 
+/* Setas de rolagem (TableScroll.tsx) — arrastar a scrollbar nem sempre
+   funciona bem dependendo do mouse/SO, e numa tabela comprida ela só
+   fica visível depois de rolar até o fim da lista. As setas ficam
+   sempre coladas em cima da tabela, clicáveis, sem depender de mira. */
+.table-scroll-arrows {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.table-scroll-arrows button {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+}
+
+.table-scroll-arrows button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 .leaderboard-table,
 .data-table {
   /* max-content: a tabela nunca comprime colunas a ponto de quebrar

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchPublicAuctions } from '../api/client';
+import { TableScroll } from '../components/TableScroll';
 
 function CodeEntryForm() {
   const { t } = useTranslation();
@@ -54,7 +55,7 @@ export function PublicAuctionsListPage() {
 
       {auctionsQuery.data?.length === 0 && <p>{t('auctions.empty')}</p>}
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="leaderboard-table">
         <thead>
           <tr>
@@ -77,7 +78,7 @@ export function PublicAuctionsListPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

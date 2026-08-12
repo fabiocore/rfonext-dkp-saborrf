@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { fetchBalances, fetchGuildSettings } from '../api/client';
 import { DefaultAvatar } from '../components/DefaultAvatar';
+import { TableScroll } from '../components/TableScroll';
 
 export function BalancesPage() {
   const { t } = useTranslation();
@@ -27,7 +28,7 @@ export function BalancesPage() {
       {balancesQuery.data && items.length === 0 && <p>{t('balances.empty')}</p>}
 
       {items.length > 0 && (
-        <div className="table-scroll">
+        <TableScroll>
         <table className="leaderboard-table">
           <thead>
             <tr>
@@ -61,7 +62,7 @@ export function BalancesPage() {
             ))}
           </tbody>
         </table>
-        </div>
+        </TableScroll>
       )}
 
       {total > 0 && (

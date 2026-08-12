@@ -9,6 +9,7 @@ import {
   type MembershipStatus,
 } from '../../api/client';
 import { EyeIcon } from '../../components/EyeIcon';
+import { TableScroll } from '../../components/TableScroll';
 
 function CopyCodeButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -213,7 +214,7 @@ export function CharactersPage() {
         (aplica na hora, sem aprovação). Se algum nível parecer errado, ajuste direto aqui na coluna "Nível".
       </p>
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -236,7 +237,7 @@ export function CharactersPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from '../api/client';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { DefaultAvatar } from '../components/DefaultAvatar';
+import { TableScroll } from '../components/TableScroll';
 
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -218,7 +219,7 @@ export function ProfilePage() {
           {levelChangeLog.length > 0 && (
             <>
               <h3 style={{ marginTop: 16 }}>{t('profile.levelHistoryTitle')}</h3>
-              <div className="table-scroll">
+              <TableScroll>
               <table className="data-table">
                 <tbody>
                   {levelChangeLog.map((entry) => (
@@ -238,7 +239,7 @@ export function ProfilePage() {
                   ))}
                 </tbody>
               </table>
-              </div>
+              </TableScroll>
             </>
           )}
         </section>

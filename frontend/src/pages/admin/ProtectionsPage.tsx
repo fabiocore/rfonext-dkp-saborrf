@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createProtection, fetchGuildSettings, fetchProtections, updateProtection, type Protection } from '../../api/client';
+import { TableScroll } from '../../components/TableScroll';
 
 function ProtectionRow({ protection, currencyAbbr }: { protection: Protection; currencyAbbr: string }) {
   const queryClient = useQueryClient();
@@ -134,7 +135,7 @@ export function ProtectionsPage() {
 
       <CreateProtectionForm currencyAbbr={currencyAbbr} />
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -152,7 +153,7 @@ export function ProtectionsPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchGuildSettings, fetchImports, uploadImport } from '../../api/client';
+import { TableScroll } from '../../components/TableScroll';
 
 interface BatchResult {
   fileName: string;
@@ -102,7 +103,7 @@ export function ImportsPage() {
         ))}
       </div>
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -127,7 +128,7 @@ export function ImportsPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

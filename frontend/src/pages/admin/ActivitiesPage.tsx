@@ -10,6 +10,7 @@ import {
   type Activity,
 } from '../../api/client';
 import { ImageUploadInput } from '../../components/ImageUploadInput';
+import { TableScroll } from '../../components/TableScroll';
 import { GearIcon } from '../../components/GearIcon';
 import { CalendarIcon } from '../../components/CalendarIcon';
 import {
@@ -482,7 +483,7 @@ export function ActivitiesPage() {
       <CreateKnownActivityForm currencyAbbr={currencyAbbr} existingNames={new Set(allActivities.map((a) => a.name))} />
       <CreateCompositeActivityForm xmlActivities={xmlActivities} currencyAbbr={currencyAbbr} />
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -504,7 +505,7 @@ export function ActivitiesPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

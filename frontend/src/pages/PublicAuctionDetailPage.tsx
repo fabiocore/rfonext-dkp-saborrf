@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { fetchGuildSettings, fetchPublicAuctionDetail } from '../api/client';
+import { TableScroll } from '../components/TableScroll';
 
 export function PublicAuctionDetailPage() {
   const { t } = useTranslation();
@@ -57,7 +58,7 @@ export function PublicAuctionDetailPage() {
               <p className="form-error">{t('auctions.itemCancelled', { reason: item.cancelReason })}</p>
             )}
 
-            <div className="table-scroll">
+            <TableScroll>
             <table className="leaderboard-table">
               <thead>
                 <tr>
@@ -85,7 +86,7 @@ export function PublicAuctionDetailPage() {
                 )}
               </tbody>
             </table>
-            </div>
+            </TableScroll>
           </div>
         );
       })}

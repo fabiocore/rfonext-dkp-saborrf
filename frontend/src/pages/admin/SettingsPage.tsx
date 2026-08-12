@@ -10,6 +10,7 @@ import {
 } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { localWeekdaysAndTimeToUtc, utcWeekdaysAndTimeToLocal } from '../../utils/scheduleTimezone';
+import { TableScroll } from '../../components/TableScroll';
 
 const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 
@@ -76,7 +77,7 @@ function WeeklyTaxManualTrigger({
       {error && <p className="form-error">{error}</p>}
 
       {runsQuery.data && runsQuery.data.length > 0 && (
-        <div className="table-scroll">
+        <TableScroll>
         <table className="data-table">
           <thead>
             <tr>
@@ -101,7 +102,7 @@ function WeeklyTaxManualTrigger({
             ))}
           </tbody>
         </table>
-        </div>
+        </TableScroll>
       )}
     </>
   );

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { createAuctionDraft, fetchAuctionsStaff } from '../../api/client';
+import { TableScroll } from '../../components/TableScroll';
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: 'Rascunho',
@@ -41,7 +42,7 @@ export function AuctionsListPage() {
         </button>
       </form>
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -66,7 +67,7 @@ export function AuctionsListPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }

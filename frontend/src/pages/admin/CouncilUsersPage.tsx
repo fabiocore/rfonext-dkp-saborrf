@@ -7,6 +7,7 @@ import {
   setStaffActive,
   type StaffUser,
 } from '../../api/client';
+import { TableScroll } from '../../components/TableScroll';
 
 const ROLE_LABEL: Record<string, string> = { VICE_GM: 'Vice-GM', COUNCIL: 'Conselho' };
 
@@ -104,7 +105,7 @@ export function CouncilUsersPage() {
         </button>
       </form>
 
-      <div className="table-scroll">
+      <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
@@ -121,7 +122,7 @@ export function CouncilUsersPage() {
           ))}
         </tbody>
       </table>
-      </div>
+      </TableScroll>
     </section>
   );
 }
