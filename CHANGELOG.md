@@ -1,5 +1,17 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Saldo de BRC no perfil + avatares com mais variedade (8 → 26, 4 estilos)
+
+**Pedido**: usuário pediu pra mostrar o saldo de BRC na tela de perfil (`/perfil/:código`) e aumentar as opções de avatar, misturando estilos diferentes (não só mais rostos parecidos no estilo único que já existia).
+
+**1. Saldo no perfil**: `ProfileService.getProfile` (backend) passou a somar as transações do ledger do personagem (mesma regra de sempre, nunca um campo solto) e devolver `balance`. Frontend mostra um badge roxo ao lado do nome, no topo da página (ex: "LINDERBERG · 48 DKP") — sempre visível, sem precisar rolar. Nova classe `.badge-accent` no `App.css`.
+
+**2. Avatares com mais variedade**: `avatar-presets.ts` (backend) foi de 8 pra 26 opções, misturando 4 estilos do DiceBear — `adventurer` (o estilo único de antes, seeds mantidos pra quem já tinha escolhido continuar reconhecido), `bottts` (robôs), `pixel-art` (retro 8-bit) e `personas` (ilustração flat moderna). Zero mudança de schema — é só uma lista estática maior; o grid do frontend já lida com qualquer quantidade (flex-wrap).
+
+**Testado ao vivo**: confirmei os 4 estilos do DiceBear resolvendo (HTTP 200) antes de usar; testei `/api/public/profile/:código` retornando `balance` batendo com o valor da tela Saldos; testei o endpoint de presets retornando as 26 opções; selecionei um avatar novo (robô `bottts`) pela tela de perfil de verdade — confirmei o preview atualizando, o anel de "selecionado" no grid, e a chamada `PUT .../avatar-preset` retornando 200. Avatar de teste revertido ao final (personagem real do roster, não sintético).
+
+## 2026-08-12 — Setas de rolagem nas tabelas (scrollbar sozinha não bastava)
+
 ## 2026-08-12 — Setas de rolagem nas tabelas (scrollbar sozinha não bastava)
 
 **Contexto**: mesmo depois da scrollbar estilizada (entrada anterior), usuário reportou que nem clicar-e-arrastar funcionava mais. Em vez de insistir em depender de arrastar a scrollbar (varia demais entre mouse/SO/navegador), pedido explícito: incluir rolagem lateral com botões.

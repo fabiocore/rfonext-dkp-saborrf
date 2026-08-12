@@ -565,6 +565,12 @@ button:disabled {
   margin-left: 0;
 }
 
+.badge-accent {
+  background: var(--accent-bg);
+  color: var(--accent);
+  margin-left: 0;
+}
+
 .badge-no {
   background: var(--danger-bg);
   color: var(--danger);

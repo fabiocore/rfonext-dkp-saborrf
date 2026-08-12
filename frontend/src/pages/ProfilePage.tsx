@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 import {
   fetchAvatarPresets,
+  fetchGuildSettings,
   fetchProfile,
   selectAvatarPreset,
   updateProfileAvatar,
@@ -24,6 +25,7 @@ export function ProfilePage() {
     queryFn: () => fetchProfile(code!),
     enabled: !!code,
   });
+  const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
 
   const [discordId, setDiscordId] = useState('');
   const [discordError, setDiscordError] = useState<string | null>(null);
@@ -119,7 +121,12 @@ export function ProfilePage() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <span className="guild-name">{character.gameName}</span>
+        <span className="guild-name">
+          {character.gameName}
+          <span className="badge badge-accent">
+            {character.balance} {settingsQuery.data?.currencyAbbr}
+          </span>
+        </span>
         <LanguageSwitcher />
       </header>
       <p>

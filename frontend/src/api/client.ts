@@ -368,6 +368,7 @@ export interface MemberProfile {
     level: number | null;
     discordId: string | null;
     avatarUrl: string | null;
+    balance: number;
   };
   levelChangeLog: LevelChangeLogEntry[];
 }

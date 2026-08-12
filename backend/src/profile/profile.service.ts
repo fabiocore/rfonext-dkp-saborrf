@@ -22,11 +22,17 @@ export class ProfileService {
 
   async getProfile(code: string) {
     const character = await this.resolveByCode(code);
-    const levelChangeLog = await this.prisma.levelChangeRequest.findMany({
-      where: { characterId: character.id },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
+    const [levelChangeLog, balanceAgg] = await Promise.all([
+      this.prisma.levelChangeRequest.findMany({
+        where: { characterId: character.id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      this.prisma.ledgerTransaction.aggregate({
+        where: { characterId: character.id },
+        _sum: { amount: true },
+      }),
+    ]);
     return {
       character: {
         id: character.id,
@@ -34,6 +40,7 @@ export class ProfileService {
         level: character.level,
         discordId: character.discordId,
         avatarUrl: character.avatarUrl,
+        balance: balanceAgg._sum.amount ?? 0,
       },
       levelChangeLog,
     };
