@@ -102,6 +102,7 @@ export function ImportsPage() {
         ))}
       </div>
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -126,6 +127,7 @@ export function ImportsPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

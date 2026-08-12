@@ -104,6 +104,7 @@ export function CouncilUsersPage() {
         </button>
       </form>
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -120,6 +121,7 @@ export function CouncilUsersPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

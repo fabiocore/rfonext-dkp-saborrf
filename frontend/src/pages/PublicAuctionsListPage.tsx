@@ -54,6 +54,7 @@ export function PublicAuctionsListPage() {
 
       {auctionsQuery.data?.length === 0 && <p>{t('auctions.empty')}</p>}
 
+      <div className="table-scroll">
       <table className="leaderboard-table">
         <thead>
           <tr>
@@ -76,6 +77,7 @@ export function PublicAuctionsListPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

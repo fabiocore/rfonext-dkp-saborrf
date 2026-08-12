@@ -307,6 +307,7 @@ export function AuctionBuilderPage() {
 
       <h3>Itens</h3>
       {editable && <AddItemForm auctionId={auction.id} />}
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -371,6 +372,7 @@ export function AuctionBuilderPage() {
           ))}
         </tbody>
       </table>
+      </div>
 
       <h3>Participantes</h3>
       {editable ? (
@@ -401,6 +403,7 @@ export function AuctionBuilderPage() {
           </button>
         </>
       ) : (
+        <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -419,6 +422,7 @@ export function AuctionBuilderPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {editable && (

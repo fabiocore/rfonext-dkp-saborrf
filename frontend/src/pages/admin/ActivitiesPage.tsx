@@ -482,6 +482,7 @@ export function ActivitiesPage() {
       <CreateKnownActivityForm currencyAbbr={currencyAbbr} existingNames={new Set(allActivities.map((a) => a.name))} />
       <CreateCompositeActivityForm xmlActivities={xmlActivities} currencyAbbr={currencyAbbr} />
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -503,6 +504,7 @@ export function ActivitiesPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

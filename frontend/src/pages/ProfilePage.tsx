@@ -218,6 +218,7 @@ export function ProfilePage() {
           {levelChangeLog.length > 0 && (
             <>
               <h3 style={{ marginTop: 16 }}>{t('profile.levelHistoryTitle')}</h3>
+              <div className="table-scroll">
               <table className="data-table">
                 <tbody>
                   {levelChangeLog.map((entry) => (
@@ -237,6 +238,7 @@ export function ProfilePage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </>
           )}
         </section>

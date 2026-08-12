@@ -27,6 +27,7 @@ export function BalancesPage() {
       {balancesQuery.data && items.length === 0 && <p>{t('balances.empty')}</p>}
 
       {items.length > 0 && (
+        <div className="table-scroll">
         <table className="leaderboard-table">
           <thead>
             <tr>
@@ -60,6 +61,7 @@ export function BalancesPage() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {total > 0 && (

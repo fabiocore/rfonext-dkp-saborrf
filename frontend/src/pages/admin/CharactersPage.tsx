@@ -213,6 +213,7 @@ export function CharactersPage() {
         (aplica na hora, sem aprovação). Se algum nível parecer errado, ajuste direto aqui na coluna "Nível".
       </p>
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -235,6 +236,7 @@ export function CharactersPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

@@ -117,9 +117,41 @@
 
 /* ---------- Tabelas ---------- */
 
+/* Envolve a <table> pra rolar só ela (não a página inteira) quando não
+   cabe na largura da tela — cabeçalho/instruções da página continuam
+   sempre visíveis. Scrollbar estilizada pra ficar sempre visível (em
+   notebook com scrollbar fina/auto-oculta do SO, a rolagem passava
+   despercebida — só dava pra descobrir arrastando às cegas). */
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  scrollbar-width: auto;
+  scrollbar-color: var(--accent) var(--bg-elevated-2);
+}
+
+.table-scroll::-webkit-scrollbar {
+  height: 12px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: var(--bg-elevated-2);
+  border-radius: var(--radius);
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: var(--radius);
+  border: 2px solid var(--bg-elevated-2);
+}
+
 .leaderboard-table,
 .data-table {
-  width: 100%;
+  /* max-content: a tabela nunca comprime colunas a ponto de quebrar
+     texto (título/botão em 2 linhas) — ela cresce até caber o conteúdo
+     e deixa o .table-scroll rolar, em vez de espremer tudo. min-width
+     100% evita ficar estreita/desalinhada quando o conteúdo é curto. */
+  width: max-content;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.92rem;
@@ -140,6 +172,11 @@
   text-transform: uppercase;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.data-table td button {
+  white-space: nowrap;
 }
 
 .leaderboard-table td,

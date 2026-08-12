@@ -134,6 +134,7 @@ export function ProtectionsPage() {
 
       <CreateProtectionForm currencyAbbr={currencyAbbr} />
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -151,6 +152,7 @@ export function ProtectionsPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

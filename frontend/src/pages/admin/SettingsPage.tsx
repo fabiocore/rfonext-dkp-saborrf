@@ -76,6 +76,7 @@ function WeeklyTaxManualTrigger({
       {error && <p className="form-error">{error}</p>}
 
       {runsQuery.data && runsQuery.data.length > 0 && (
+        <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -100,6 +101,7 @@ function WeeklyTaxManualTrigger({
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </>
   );

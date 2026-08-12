@@ -41,6 +41,7 @@ export function AuctionsListPage() {
         </button>
       </form>
 
+      <div className="table-scroll">
       <table className="data-table">
         <thead>
           <tr>
@@ -65,6 +66,7 @@ export function AuctionsListPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </section>
   );
 }

@@ -57,6 +57,7 @@ export function PublicAuctionDetailPage() {
               <p className="form-error">{t('auctions.itemCancelled', { reason: item.cancelReason })}</p>
             )}
 
+            <div className="table-scroll">
             <table className="leaderboard-table">
               <thead>
                 <tr>
@@ -84,6 +85,7 @@ export function PublicAuctionDetailPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         );
       })}

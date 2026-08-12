@@ -1,5 +1,17 @@
 # Changelog — RFONext DKP
 
+## 2026-08-12 — Tabelas do admin: scroll horizontal descobrível + texto parando de quebrar
+
+**Contexto**: usuário reportou, com print, que em notebook (tela menor) a tabela de Personagens não dava nenhuma pista de que dava pra rolar pra direita — só descobriu arrastando às cegas — e que cabeçalhos/botões apareciam quebrados em duas linhas ("ÚLTIMA VEZ" / "VISTO", "GERAR" / "NOVO").
+
+**Causa raiz**: a tabela (`.data-table`/`.leaderboard-table`) não tinha `min-width`, então o navegador preferia espremer colunas e quebrar texto a deixar a tabela ultrapassar a tela. O scroll horizontal também estava no bloco inteiro da página (`.admin-content`), não só na tabela — rolar pra direita fazia o texto de instrução do topo sumir junto. E não havia nenhuma pista visual (sombra, scrollbar estilizada) indicando que tinha mais conteúdo pra ver.
+
+**Fix** (`App.css` + 12 arquivos de página): nova classe `.table-scroll` envolvendo cada `<table>` — cabeçalho/instrução da página ficam sempre visíveis, só a tabela rola. Tabela passou a usar `width: max-content; min-width: 100%` (nunca comprime a ponto de quebrar texto) e `white-space: nowrap` nos cabeçalhos e botões de ação. Scrollbar do `.table-scroll` estilizada pra ficar sempre visível, grossa (12px) e na cor de destaque (roxo) — bem mais fácil de notar que a scrollbar fina padrão do SO. Aplicado nas 9 telas admin (`data-table`) e 3 páginas públicas (`leaderboard-table`) que usam essas classes, não só Personagens.
+
+**Ressalva conhecida, não resolvida agora**: em tabelas muito longas (Personagens tem 57 linhas), a barra horizontal só fica visível depois de rolar até o fim da lista — segue precisando de scroll vertical primeiro. Resolver isso direito exigiria limitar a altura da tabela com scroll vertical próprio (grid com cabeçalho fixo), fora do escopo combinado agora.
+
+**Testado ao vivo**: verificado em viewport 1280×720 (notebook) nas telas Personagens e Atividades — cabeçalhos numa linha só, texto de instrução fixo enquanto a tabela rola, scrollbar roxa visível e funcional (testada arrastando). `tsc --noEmit` e `npm run build` limpos.
+
 ## 2026-08-12 — Detalhe do dado de desempate também na tela admin do leilão
 
 **Contexto**: usuário levantou um cenário pra testar — dois jogadores com o mesmo saldo disponível (150 BRC) disputando o mesmo item, o segundo sem conseguir dar +1 por falta de saldo. Simulei ponta a ponta (dois personagens de teste, 150 BRC cada, os dois dando all-in de 150, leilão encerrado manualmente) e confirmei: o segundo lance de 150 é **aceito mesmo empatando** com o líder — a validação real do backend exige só "≥ líder atual", não "líder + 1" (o "+1" é só uma sugestão da tela, não uma trava). Isso é necessário: se fosse trava de +1, o segundo jogador nunca conseguiria forçar o desempate. Ao encerrar, o dado rodou automaticamente (15 vs 77), só o vencedor teve o valor queimado no ledger, e o perdedor manteve o saldo intacto.
