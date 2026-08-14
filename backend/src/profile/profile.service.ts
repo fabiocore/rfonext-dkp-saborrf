@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { isValidDiscordHandle } from '../common/discord-handle.util';
+import { CharactersService } from '../characters/characters.service';
 
 /**
  * Perfil self-service do membro, acessado por código de 12 caracteres (sem
@@ -12,7 +13,10 @@ import { isValidDiscordHandle } from '../common/discord-handle.util';
  */
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly charactersService: CharactersService,
+  ) {}
 
   private async resolveByCode(code: string) {
     const character = await this.prisma.character.findUnique({ where: { profileAccessCode: code } });
@@ -22,7 +26,7 @@ export class ProfileService {
 
   async getProfile(code: string) {
     const character = await this.resolveByCode(code);
-    const [levelChangeLog, balanceAgg] = await Promise.all([
+    const [levelChangeLog, balanceAgg, auctionAccessCode] = await Promise.all([
       this.prisma.levelChangeRequest.findMany({
         where: { characterId: character.id },
         orderBy: { createdAt: 'desc' },
@@ -32,6 +36,10 @@ export class ProfileService {
         where: { characterId: character.id },
         _sum: { amount: true },
       }),
+      // Garante que o código de leilão fixo existe mesmo se o admin nunca
+      // abriu a tela de Personagens desde que esse personagem virou
+      // Principal (é o que dispara o backfill em lote de lá).
+      this.charactersService.ensureAuctionCodeFor(character.id),
     ]);
     return {
       character: {
@@ -41,6 +49,7 @@ export class ProfileService {
         discordId: character.discordId,
         avatarUrl: character.avatarUrl,
         balance: balanceAgg._sum.amount ?? 0,
+        auctionAccessCode,
       },
       levelChangeLog,
     };

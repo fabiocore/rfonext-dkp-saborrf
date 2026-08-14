@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Character } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateProfileAccessCode } from '../profile/profile-code.util';
+import { generateAccessCode } from '../auctions/auction-code.util';
 import { isValidDiscordHandle } from '../common/discord-handle.util';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class CharactersService {
 
   async findAll() {
     await this.ensureAllPrincipalsHaveProfileCodes();
+    await this.ensureAllPrincipalsHaveAuctionCodes();
     const [characters, sums] = await Promise.all([
       this.prisma.character.findMany({ orderBy: { gameName: 'asc' } }),
       this.prisma.ledgerTransaction.groupBy({ by: ['characterId'], _sum: { amount: true } }),
@@ -60,6 +62,58 @@ export class CharactersService {
       where: { id },
       data: { profileAccessCode: await this.uniqueProfileCode() },
     });
+  }
+
+  /**
+   * Código de leilão FIXO por personagem (trocado em 2026-08-14 — antes era
+   * gerado de novo a cada leilão publicado, insano de redistribuir toda
+   * vez). Mesmo padrão idempotente/autocorretivo do código de perfil acima.
+   */
+  private async ensureAllPrincipalsHaveAuctionCodes(): Promise<void> {
+    const missing = await this.prisma.character.findMany({
+      where: { status: 'PRINCIPAL', auctionAccessCode: null },
+      select: { id: true },
+    });
+    for (const { id } of missing) {
+      await this.prisma.character.update({ where: { id }, data: { auctionAccessCode: await this.uniqueAuctionCode() } });
+    }
+  }
+
+  private async uniqueAuctionCode(): Promise<string> {
+    let code = generateAccessCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const clash = await this.prisma.character.findUnique({ where: { auctionAccessCode: code } });
+      if (!clash) break;
+      code = generateAccessCode();
+    }
+    return code;
+  }
+
+  async regenerateAuctionAccessCode(id: string) {
+    const character = await this.prisma.character.findUnique({ where: { id } });
+    if (!character) throw new NotFoundException('Personagem não encontrado.');
+    if (character.status !== 'PRINCIPAL') {
+      throw new BadRequestException('Só Principal tem código de leilão.');
+    }
+    return this.prisma.character.update({
+      where: { id },
+      data: { auctionAccessCode: await this.uniqueAuctionCode() },
+    });
+  }
+
+  /**
+   * Garante o código de leilão de UM personagem específico — usado pelo
+   * ProfileService ao abrir /perfil, pra não depender de o admin já ter
+   * aberto a tela de Personagens antes (que é o que dispara o backfill em
+   * lote acima).
+   */
+  async ensureAuctionCodeFor(characterId: string): Promise<string> {
+    const character = await this.prisma.character.findUnique({ where: { id: characterId } });
+    if (!character) throw new NotFoundException('Personagem não encontrado.');
+    if (character.auctionAccessCode) return character.auctionAccessCode;
+    const code = await this.uniqueAuctionCode();
+    await this.prisma.character.update({ where: { id: characterId }, data: { auctionAccessCode: code } });
+    return code;
   }
 
   /**

@@ -14,6 +14,7 @@ import {
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { DefaultAvatar } from '../components/DefaultAvatar';
 import { TableScroll } from '../components/TableScroll';
+import { CopyCodeButton } from '../components/CopyCodeButton';
 
 export function ProfilePage() {
   const { t, i18n } = useTranslation();
@@ -132,6 +133,15 @@ export function ProfilePage() {
       </p>
       <main>
         <section>
+          <h2>{t('profile.auctionCodeTitle')}</h2>
+          <p className="subtitle">{t('profile.auctionCodeSubtitle')}</p>
+          <div className="inline-form">
+            <strong style={{ fontSize: '1.1rem', letterSpacing: '0.08em' }}>{character.auctionAccessCode}</strong>
+            <CopyCodeButton code={character.auctionAccessCode} />
+          </div>
+        </section>
+
+        <section style={{ marginTop: 24 }}>
           <h2>{t('profile.avatarTitle')}</h2>
           {character.avatarUrl ? (
             <img

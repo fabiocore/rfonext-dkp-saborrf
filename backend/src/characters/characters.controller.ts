@@ -21,4 +21,9 @@ export class CharactersController {
   regenerateProfileCode(@Param('id') id: string) {
     return this.charactersService.regenerateProfileAccessCode(id);
   }
+
+  @Post(':id/regenerate-auction-code')
+  regenerateAuctionCode(@Param('id') id: string) {
+    return this.charactersService.regenerateAuctionAccessCode(id);
+  }
 }

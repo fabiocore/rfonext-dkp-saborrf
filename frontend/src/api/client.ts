@@ -79,6 +79,7 @@ export interface Character {
   discordId: string | null;
   avatarUrl: string | null;
   profileAccessCode: string | null;
+  auctionAccessCode: string | null;
 }
 
 export interface ActivityComponentRef {
@@ -261,6 +262,11 @@ export async function regenerateProfileCode(id: string): Promise<Character> {
   return data;
 }
 
+export async function regenerateAuctionCode(id: string): Promise<Character> {
+  const { data } = await apiClient.post<Character>(`/characters/${id}/regenerate-auction-code`);
+  return data;
+}
+
 export async function fetchActivities(): Promise<Activity[]> {
   const { data } = await apiClient.get<Activity[]>('/activities');
   return data;
@@ -369,6 +375,7 @@ export interface MemberProfile {
     discordId: string | null;
     avatarUrl: string | null;
     balance: number;
+    auctionAccessCode: string;
   };
   levelChangeLog: LevelChangeLogEntry[];
 }
@@ -569,7 +576,6 @@ export interface AuctionParticipant {
   id: string;
   auctionId: string;
   characterId: string;
-  accessCode: string | null;
   character: Character;
 }
 
@@ -731,8 +737,25 @@ export interface PlayerAuctionView {
   items: PlayerAuctionItemView[];
 }
 
-export async function fetchPlayerAuctionView(code: string): Promise<PlayerAuctionView> {
-  const { data } = await apiClient.get<PlayerAuctionView>(`/player-auctions/${code}`);
+export interface MyAuctionSummary {
+  id: string;
+  title: string;
+  expiresAt: string | null;
+  itemCount: number;
+}
+
+export interface MyAuctionsResponse {
+  character: { id: string; gameName: string };
+  auctions: MyAuctionSummary[];
+}
+
+export async function fetchMyAuctions(code: string): Promise<MyAuctionsResponse> {
+  const { data } = await apiClient.get<MyAuctionsResponse>(`/player-auctions/${code}`);
+  return data;
+}
+
+export async function fetchPlayerAuctionView(code: string, auctionId: string): Promise<PlayerAuctionView> {
+  const { data } = await apiClient.get<PlayerAuctionView>(`/player-auctions/${code}/${auctionId}`);
   return data;
 }
 

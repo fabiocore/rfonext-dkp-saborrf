@@ -94,22 +94,6 @@ function AddItemForm({ auctionId }: { auctionId: string }) {
   );
 }
 
-function CopyCodeButton({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? 'Copiado!' : 'Copiar'}
-    </button>
-  );
-}
-
 export function AuctionBuilderPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -380,8 +364,9 @@ export function AuctionBuilderPage() {
         <>
           <p className="subtitle">
             Marque quem participou do evento (todo Principal ativo que recebe DKP aparece aqui, independente de
-            nível). Cada um recebe um código de acesso ao leilão — se algum item tiver proteção, quem não bate o
-            nível mínimo consegue ver mas não consegue dar lance só naquele item específico.
+            nível). Assim que publicar, cada um já consegue entrar com o próprio código de leilão (fixo, consultado
+            no perfil dele — não precisa distribuir nada novo). Se algum item tiver proteção, quem não bate o nível
+            mínimo consegue ver mas não consegue dar lance só naquele item específico.
           </p>
           <div>
             <button type="button" onClick={() => setSelectedParticipants(new Set(principals.map((c) => c.id)))}>
@@ -404,26 +389,28 @@ export function AuctionBuilderPage() {
           </button>
         </>
       ) : (
+        <>
+        <p className="subtitle">
+          Cada participante entra com o próprio código de leilão fixo (consulte em Personagens ou no perfil dele —
+          não muda de leilão pra leilão).
+        </p>
         <TableScroll>
         <table className="data-table">
           <thead>
             <tr>
               <th>Personagem</th>
-              <th>Código</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {auction.participants.map((p) => (
               <tr key={p.id}>
                 <td>{p.character.gameName}</td>
-                <td>{p.accessCode ?? '— (sem item elegível)'}</td>
-                <td>{p.accessCode && <CopyCodeButton code={p.accessCode} />}</td>
               </tr>
             ))}
           </tbody>
         </table>
         </TableScroll>
+        </>
       )}
 
       {editable && (

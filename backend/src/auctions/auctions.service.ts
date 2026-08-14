@@ -1,7 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { generateAccessCode } from './auction-code.util';
 import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
 
 type ResolvableItem = {
@@ -270,38 +269,18 @@ export class AuctionsService {
   }
 
   private async publish(auctionId: string) {
-    const auction = await this.prisma.auction.findUniqueOrThrow({
-      where: { id: auctionId },
-      include: {
-        items: { include: { protection: true } },
-        participants: { include: { character: true } },
-      },
-    });
+    const auction = await this.prisma.auction.findUniqueOrThrow({ where: { id: auctionId } });
 
     const now = new Date();
     // A data/hora de término é definida pelo GM/conselho antes de publicar
     // (setSchedule) — approve() já garante que existe e está no futuro.
     const expiresAt = auction.scheduledEndAt!;
 
-    // Todo participante marcado recebe código — participação no leilão
-    // (quem esteve no evento) é independente de elegibilidade por item
-    // (nível vs. Proteção, checado no lance em si, não aqui). Bug corrigido
-    // em 2026-08-09: antes pulava gerar código pra quem não batia nível de
-    // NENHUM item, mesmo tendo participado de verdade do evento.
-    for (const participant of auction.participants) {
-      let code = generateAccessCode();
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const clash = await this.prisma.auctionParticipant.findUnique({ where: { accessCode: code } });
-        if (!clash) break;
-        code = generateAccessCode();
-      }
-
-      await this.prisma.auctionParticipant.update({
-        where: { id: participant.id },
-        data: { accessCode: code },
-      });
-    }
-
+    // Não gera código nenhum aqui — desde 2026-08-14, acesso ao leilão é
+    // pelo código de leilão FIXO do personagem (Character.auctionAccessCode,
+    // consultado no /perfil dele), não por um código novo por leilão. Quem
+    // já está marcado como participante (setParticipants) já consegue
+    // acessar assim que o leilão publica, sem distribuição manual nenhuma.
     return this.prisma.auction.update({
       where: { id: auctionId },
       data: { status: 'OPEN', publishedAt: now, expiresAt },
@@ -349,20 +328,54 @@ export class AuctionsService {
   // Jogador via código de acesso
   // ---------------------------------------------------------------------
 
-  private async resolveParticipant(code: string) {
+  /**
+   * Código de leilão é FIXO por personagem (Character.auctionAccessCode,
+   * desde 2026-08-14) — resolve o personagem primeiro, depois confirma que
+   * ele está marcado como participante DESSE leilão específico. Sem isso,
+   * o código não libera acesso a leilão nenhum que a pessoa não tenha
+   * participado (só ver, que já é público em /leiloes, sem código).
+   */
+  private async resolveParticipant(code: string, auctionId: string) {
+    const character = await this.prisma.character.findUnique({ where: { auctionAccessCode: code } });
+    if (!character) throw new NotFoundException('Código inválido.');
+
     const participant = await this.prisma.auctionParticipant.findUnique({
-      where: { accessCode: code },
+      where: { auctionId_characterId: { auctionId, characterId: character.id } },
       include: {
         character: true,
         auction: { include: { items: { include: { protection: true, bids: true, withdrawals: true } } } },
       },
     });
-    if (!participant) throw new NotFoundException('Código inválido.');
+    if (!participant) throw new ForbiddenException('Você não participou deste leilão.');
     return participant;
   }
 
-  async getParticipantView(code: string) {
-    const participant = await this.resolveParticipant(code);
+  /** Lista os leilões abertos em que o dono desse código participa — central pessoal em /oferta/:código. */
+  async getMyAuctions(code: string) {
+    const character = await this.prisma.character.findUnique({ where: { auctionAccessCode: code } });
+    if (!character) throw new NotFoundException('Código inválido.');
+
+    const participations = await this.prisma.auctionParticipant.findMany({
+      where: { characterId: character.id, auction: { status: 'OPEN' } },
+      include: { auction: { include: { items: { select: { id: true } } } } },
+    });
+
+    const now = new Date();
+    const auctions = participations
+      .filter((p) => p.auction.expiresAt && p.auction.expiresAt > now)
+      .map((p) => ({
+        id: p.auction.id,
+        title: p.auction.title,
+        expiresAt: p.auction.expiresAt,
+        itemCount: p.auction.items.length,
+      }))
+      .sort((a, b) => (a.expiresAt && b.expiresAt ? a.expiresAt.getTime() - b.expiresAt.getTime() : 0));
+
+    return { character: { id: character.id, gameName: character.gameName }, auctions };
+  }
+
+  async getParticipantView(code: string, auctionId: string) {
+    const participant = await this.resolveParticipant(code, auctionId);
     const walletBalance = await this.getBalance(participant.characterId);
     const hold = await this.computeHold(participant.characterId, null);
     const guildSettings = await this.prisma.guildSettings.upsert({
@@ -428,7 +441,13 @@ export class AuctionsService {
       throw new BadRequestException('Valor de lance inválido.');
     }
 
-    const participant = await this.resolveParticipant(code);
+    const itemRef = await this.prisma.auctionItem.findUnique({
+      where: { id: auctionItemId },
+      select: { auctionId: true },
+    });
+    if (!itemRef) throw new NotFoundException('Item não encontrado.');
+
+    const participant = await this.resolveParticipant(code, itemRef.auctionId);
     const auction = participant.auction;
 
     if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {
@@ -522,7 +541,13 @@ export class AuctionsService {
    * ele seria o vencedor).
    */
   async withdrawFromItem(code: string, auctionItemId: string) {
-    const participant = await this.resolveParticipant(code);
+    const itemRef = await this.prisma.auctionItem.findUnique({
+      where: { id: auctionItemId },
+      select: { auctionId: true },
+    });
+    if (!itemRef) throw new NotFoundException('Item não encontrado.');
+
+    const participant = await this.resolveParticipant(code, itemRef.auctionId);
     const auction = participant.auction;
 
     if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {

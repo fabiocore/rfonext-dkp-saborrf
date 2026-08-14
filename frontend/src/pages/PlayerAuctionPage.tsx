@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import {
   fetchGuildSettings,
+  fetchMyAuctions,
   fetchPlayerAuctionView,
   placePlayerBid,
   withdrawPlayerBid,
+  type MyAuctionSummary,
   type PlayerAuctionItemView,
 } from '../api/client';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -117,13 +119,76 @@ function ItemCard({
   );
 }
 
-export function PlayerAuctionPage() {
+/**
+ * Central pessoal do código de leilão (fixo por personagem, desde
+ * 2026-08-14) — lista só os leilões ABERTOS em que ele participa. Sem
+ * leilão nenhum aberto: mensagem simples. Com 1 só: entra direto, mesma
+ * experiência de sempre. Com 2+: escolhe qual.
+ */
+export function PlayerAuctionHubPage() {
   const { t } = useTranslation();
   const { code } = useParams<{ code: string }>();
-  const viewQuery = useQuery({
-    queryKey: ['player-auction', code],
-    queryFn: () => fetchPlayerAuctionView(code!),
+  const myAuctionsQuery = useQuery({
+    queryKey: ['my-auctions', code],
+    queryFn: () => fetchMyAuctions(code!),
     enabled: !!code,
+  });
+
+  if (myAuctionsQuery.isLoading) return <div className="app-shell">{t('player.loading')}</div>;
+  if (myAuctionsQuery.isError || !myAuctionsQuery.data) {
+    return (
+      <div className="app-shell">
+        <header className="app-header">
+          <Link to="/" className="guild-name" style={{ textDecoration: 'none', color: 'inherit' }}>
+            {t('player.backHome')}
+          </Link>
+          <LanguageSwitcher />
+        </header>
+        <p className="form-error">{t('player.invalidCode')}</p>
+      </div>
+    );
+  }
+
+  const { character, auctions } = myAuctionsQuery.data;
+
+  if (auctions.length === 1) {
+    return <Navigate to={`/oferta/${code}/${auctions[0].id}`} replace />;
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <span className="guild-name">{character.gameName}</span>
+        <LanguageSwitcher />
+      </header>
+      <p>
+        <Link to="/">{t('player.backHome')}</Link>
+      </p>
+      <main>
+        <h1>{t('player.myAuctionsTitle')}</h1>
+        {auctions.length === 0 && <p className="subtitle">{t('player.noOpenAuctions')}</p>}
+        {auctions.map((a: MyAuctionSummary) => (
+          <div key={a.id} className="auction-item-card">
+            <h3>{a.title}</h3>
+            <p className="subtitle">
+              {t('player.auctionItemCount', { count: a.itemCount })}
+              {a.expiresAt && <> · {t('auctions.expiresAt', { date: new Date(a.expiresAt).toLocaleString() })}</>}
+            </p>
+            <Link to={`/oferta/${code}/${a.id}`}>{t('player.enterAuction')}</Link>
+          </div>
+        ))}
+      </main>
+    </div>
+  );
+}
+
+export function PlayerAuctionDetailPage() {
+  const { t } = useTranslation();
+  const { code, auctionId } = useParams<{ code: string; auctionId: string }>();
+  const viewQuery = useQuery({
+    queryKey: ['player-auction', code, auctionId],
+    queryFn: () => fetchPlayerAuctionView(code!, auctionId!),
+    enabled: !!code && !!auctionId,
     refetchInterval: 5000,
   });
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
@@ -154,7 +219,7 @@ export function PlayerAuctionPage() {
         <LanguageSwitcher />
       </header>
       <p>
-        <Link to="/">{t('player.backHome')}</Link>
+        <Link to={`/oferta/${code}`}>{t('player.backToMyAuctions')}</Link>
       </p>
       <main>
         <p>

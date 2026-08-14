@@ -1,5 +1,19 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Código de leilão fixo por personagem (não era mais por leilão)
+
+**Pedido**: usuário reportou que o código de leilão era gerado de novo a cada leilão publicado, e redistribuir pra todo mundo toda vez estava "insano". Pediu um código **fixo por personagem**, consultável no próprio `/perfil`, separado do código de perfil — mas reforçou que o código não pode liberar acesso a leilões que a pessoa não participou (só quem está marcado como participante consegue ofertar; quem não participou já pode ver qualquer leilão pela página pública, sem código).
+
+**Mudança estrutural**: como o mesmo personagem pode participar de mais de um leilão aberto ao mesmo tempo, `/oferta/:código` deixou de levar direto pros itens de UM leilão — virou uma central pessoal: lista os leilões abertos em que aquele código participa (1 aberto → entra direto, mesma experiência de sempre; 2+ → escolhe qual; 0 → mensagem simples).
+
+**Backend**: novo `Character.auctionAccessCode` (formato `LLLLNN`, mesmo de sempre, gerado automaticamente pra todo Principal — mesmo padrão idempotente do código de perfil). Removido `AuctionParticipant.accessCode` (migration `20260814000000_fixed_auction_code`) — não fazia mais sentido, cada leilão publicado não gera código nenhum. `AuctionsService.resolveParticipant` passou a resolver o personagem pelo código fixo primeiro, e só então confirmar que ele está marcado como participante do leilão pedido (`ForbiddenException` clara se não estiver — o código nunca libera leilão que a pessoa não participou). Novo `getMyAuctions(code)` alimenta a central; `getParticipantView` ganhou `auctionId` como segundo parâmetro. `ProfileService.getProfile` devolve o código também (com backfill on-demand, `CharactersService.ensureAuctionCodeFor`, pra não depender do admin ter aberto Personagens antes).
+
+**Frontend**: `ProfilePage.tsx` ganhou seção "Código de Leilão" com botão copiar. `PlayerAuctionPage.tsx` virou duas telas (`PlayerAuctionHubPage` em `/oferta/:código` e `PlayerAuctionDetailPage` em `/oferta/:código/:auctionId`). `CharactersPage.tsx` (admin) ganhou coluna "Código de leilão" (mascarado + olho + gerar novo + copiar, mesmo padrão do de perfil — extraído `CopyCodeButton` pra um componente compartilhado). `AuctionBuilderPage.tsx` perdeu a coluna de código dos participantes — nada mais pra distribuir por leilão.
+
+**Testado ao vivo, ponta a ponta**: criei 2 personagens participantes + 1 não-participante, publiquei 2 leilões com os mesmos 2 participantes — confirmei que o código fixo de um personagem lista os **2** leilões na central, sem eu ter gerado/distribuído nada novo pro segundo leilão. Dei lance em ambos (via curl e depois via navegador de verdade, incluindo o botão "Dar lance"), confirmei o saldo reservado somando os dois. Confirmei que o personagem não-participante recebe `403 Forbidden` ("Você não participou deste leilão.") ao tentar acessar o leilão diretamente pela URL, e que a central dele mostra lista vazia. Confirmei código totalmente inválido retornando 404. `tsc -b && vite build` e `nest build` limpos nos dois containers. Dados de teste removidos ao final.
+
+## 2026-08-14 — Fix real: desistência não fecha mais o item como "Não reclamado" antes da hora
+
 ## 2026-08-14 — Fix real: desistência não fecha mais o item como "Não reclamado" antes da hora
 
 **Bug reportado**: quando o único jogador com lance num item desistia, o item virava "Não reclamado" imediatamente — mesmo com o leilão ainda aberto por dias. Isso tirava a chance de outros elegíveis que ainda não tinham dado lance disputarem o item até o prazo real.

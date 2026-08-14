@@ -116,11 +116,18 @@ model Character {
   updatedAt          DateTime  @updatedAt
 
   // Perfil self-service do membro (PREMISSAS.md seção 3) — código de 12
-  // caracteres, gerado automaticamente pra todo Principal, distribuído
-  // manualmente pelo GM/conselho (mesmo padrão do código de leilão).
+  // caracteres, gerado automaticamente pra todo Principal.
   discordId          String?
   avatarUrl          String?
   profileAccessCode  String?   @unique
+
+  // Código de leilão FIXO por personagem (formato LLLLNN, igual usava por
+  // participação antes) — trocado em 2026-08-14: código antigo era gerado
+  // de novo a cada leilão publicado, insano de redistribuir toda vez. Agora
+  // é gerado uma vez, o jogador consulta ele mesmo no /perfil, e vale pra
+  // qualquer leilão futuro em que ele for marcado como participante — sem
+  // precisar de nova distribuição manual.
+  auctionAccessCode  String?   @unique
 
   ledgerTransactions LedgerTransaction[]
   activityCheckIns   ActivityCheckIn[]
@@ -440,15 +447,15 @@ model AuctionItemWithdrawal {
   @@unique([auctionItemId, characterId])
 }
 
-// Código único por (personagem, leilão) — só gerado pra quem é elegível em
-// pelo menos 1 item (PREMISSAS.md seção 7).
+// Marca quem participou do evento no jogo — acesso ao leilão em si é pelo
+// Character.auctionAccessCode (fixo, permanente), não por um código daqui
+// (removido em 2026-08-14 — era gerado de novo a cada leilão publicado).
 model AuctionParticipant {
   id           String    @id @default(uuid())
   auctionId    String
   auction      Auction   @relation(fields: [auctionId], references: [id])
   characterId  String
   character    Character @relation(fields: [characterId], references: [id])
-  accessCode   String?   @unique
   createdAt    DateTime  @default(now())
 
   @@unique([auctionId, characterId])

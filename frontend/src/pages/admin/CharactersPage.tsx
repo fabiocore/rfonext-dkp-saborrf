@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCharacters,
   fetchGuildSettings,
+  regenerateAuctionCode,
   regenerateProfileCode,
   updateCharacter,
   type Character,
@@ -10,22 +11,7 @@ import {
 } from '../../api/client';
 import { EyeIcon } from '../../components/EyeIcon';
 import { TableScroll } from '../../components/TableScroll';
-
-function CopyCodeButton({ code }: { code: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(code);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      {copied ? 'Copiado!' : 'Copiar'}
-    </button>
-  );
-}
+import { CopyCodeButton } from '../../components/CopyCodeButton';
 
 function ProfileCodeCell({ characterId, code, gameName }: { characterId: string; code: string; gameName: string }) {
   const queryClient = useQueryClient();
@@ -53,6 +39,50 @@ function ProfileCodeCell({ characterId, code, gameName }: { characterId: string;
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <code>{visible ? code : '••••••••••••'}</code>
+      <button
+        type="button"
+        className="icon-btn"
+        title={visible ? 'Ocultar código' : 'Mostrar código'}
+        aria-label={visible ? 'Ocultar código' : 'Mostrar código'}
+        onClick={() => setVisible((v) => !v)}
+      >
+        <EyeIcon open={visible} />
+      </button>
+      {visible && <CopyCodeButton code={code} />}
+      <button type="button" onClick={handleRegenerate} disabled={regenerateMutation.isPending}>
+        Gerar novo
+      </button>
+    </span>
+  );
+}
+
+/** Código de leilão fixo (2026-08-14) — mesmo padrão do código de perfil acima, mascarado por padrão. */
+function AuctionCodeCell({ characterId, code, gameName }: { characterId: string; code: string; gameName: string }) {
+  const queryClient = useQueryClient();
+  const [visible, setVisible] = useState(false);
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => regenerateAuctionCode(characterId),
+    onSuccess: () => {
+      setVisible(true);
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+    },
+  });
+
+  function handleRegenerate() {
+    if (
+      !confirm(
+        `Gerar um novo código de leilão pra "${gameName}"? O código atual para de funcionar na hora — se o membro já tinha esse código salvo em algum lugar, ele vai precisar do novo.`,
+      )
+    ) {
+      return;
+    }
+    regenerateMutation.mutate();
+  }
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      <code>{visible ? code : '••••••'}</code>
       <button
         type="button"
         className="icon-btn"
@@ -179,6 +209,13 @@ function CharacterRow({
         )}
       </td>
       <td>
+        {character.auctionAccessCode ? (
+          <AuctionCodeCell characterId={character.id} code={character.auctionAccessCode} gameName={character.gameName} />
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
         <button type="button" disabled={!dirty || mutation.isPending} onClick={() => mutation.mutate()}>
           Salvar
         </button>
@@ -211,7 +248,10 @@ export function CharactersPage() {
         mesmo depois que o personagem sai, pra consulta histórica. O "Código de perfil" (12 caracteres, gerado
         automaticamente pra todo Principal) dá acesso à tela pública de perfil — compartilhe manualmente com o
         membro (Discord etc.); lá ele informa o próprio ID do Discord, troca o avatar, e edita o próprio nível
-        (aplica na hora, sem aprovação). Se algum nível parecer errado, ajuste direto aqui na coluna "Nível".
+        (aplica na hora, sem aprovação). O "Código de leilão" (formato curto, fixo por personagem desde 2026-08-14)
+        dá acesso a qualquer leilão em que ele for marcado como participante — não muda a cada leilão novo, o
+        próprio membro também consegue ver ele na tela de perfil. Se algum nível parecer errado, ajuste direto aqui
+        na coluna "Nível".
       </p>
 
       <TableScroll>
@@ -228,6 +268,7 @@ export function CharactersPage() {
             <th>Saldo</th>
             <th>Discord ID</th>
             <th>Código de perfil</th>
+            <th>Código de leilão</th>
             <th></th>
           </tr>
         </thead>

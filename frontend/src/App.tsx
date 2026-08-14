@@ -5,7 +5,7 @@ import { BalancesPage } from './pages/BalancesPage';
 import { PublicAuctionsListPage } from './pages/PublicAuctionsListPage';
 import { PublicAuctionDetailPage } from './pages/PublicAuctionDetailPage';
 import { TransparencyFeedPage } from './pages/TransparencyFeedPage';
-import { PlayerAuctionPage } from './pages/PlayerAuctionPage';
+import { PlayerAuctionHubPage, PlayerAuctionDetailPage } from './pages/PlayerAuctionPage';
 import { ProfileCodeEntryPage } from './pages/ProfileCodeEntryPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/admin/LoginPage';
@@ -42,7 +42,8 @@ function App() {
         <Route path="perfil" element={<ProfileCodeEntryPage />} />
       </Route>
 
-      <Route path="/oferta/:code" element={<PlayerAuctionPage />} />
+      <Route path="/oferta/:code" element={<PlayerAuctionHubPage />} />
+      <Route path="/oferta/:code/:auctionId" element={<PlayerAuctionDetailPage />} />
       <Route path="/perfil/:code" element={<ProfilePage />} />
 
       <Route path="/admin/login" element={<LoginPage />} />

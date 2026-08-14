@@ -9,9 +9,16 @@ import { Public } from '../auth/decorators/public.decorator';
 export class PlayerAuctionsController {
   constructor(private readonly auctionsService: AuctionsService) {}
 
+  // Central pessoal: lista os leilões abertos em que o dono do código
+  // (fixo, por personagem) participa.
   @Get(':code')
-  getView(@Param('code') code: string) {
-    return this.auctionsService.getParticipantView(code);
+  getMyAuctions(@Param('code') code: string) {
+    return this.auctionsService.getMyAuctions(code);
+  }
+
+  @Get(':code/:auctionId')
+  getView(@Param('code') code: string, @Param('auctionId') auctionId: string) {
+    return this.auctionsService.getParticipantView(code, auctionId);
   }
 
   @Post(':code/items/:itemId/bids')
