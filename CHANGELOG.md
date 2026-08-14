@@ -1,5 +1,15 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Fix real: desistência não fecha mais o item como "Não reclamado" antes da hora
+
+**Bug reportado**: quando o único jogador com lance num item desistia, o item virava "Não reclamado" imediatamente — mesmo com o leilão ainda aberto por dias. Isso tirava a chance de outros elegíveis que ainda não tinham dado lance disputarem o item até o prazo real.
+
+**Causa**: `withdrawFromItem` (`auctions.service.ts`) resolvia o item na hora pra `UNCLAIMED` assim que a contagem de concorrentes ativos caía pra 0, em vez de deixar `PENDING` e só decidir isso no fechamento de verdade do leilão.
+
+**Fix**: removido esse fechamento antecipado. Com 0 concorrentes ativos, o item agora só fica `PENDING` — igual ao caminho que já existia pra "2+ concorrentes, nada muda". A resolução real continua acontecendo em `resolvePendingItem` (compartilhada entre expiração automática e encerramento manual), que já tratava corretamente "0 lances ativos no fechamento → Não reclamado" — só não devia rodar antes da hora. Comportamento intocado: quando sobra exatamente 1 concorrente ativo, ele continua vencendo na hora (não era o bug reportado).
+
+**Testado ao vivo**: item com 1 lance, esse jogador desiste — confirmado `PENDING` (não `UNCLAIMED`), `minBid` resetado pro mínimo configurado; um segundo personagem deu lance novo no mesmo item com sucesso; os dois desistiram (0 ativos de novo) — confirmado ainda `PENDING`; encerrei o leilão manualmente — só aí virou `UNCLAIMED`. Testado também o caminho intocado: item com 2 lances, um desiste, sobra 1 — confirmado `WON` na hora, sem esperar o fechamento. Dados de teste removidos ao final.
+
 ## 2026-08-12 — Trocado pixel-art/personas por avataaars/micah (feedback visual real)
 
 **Contexto**: usuário revisou os 36 avatares publicados na rodada anterior e reportou que 2 dos 4 estilos (`pixel-art` e `personas`) ficaram feios comparado com os outros dois (`adventurer`, `bottts`). Em vez de chutar substitutos, montei uma prévia (artifact HTML, tokens visuais do próprio app, SVGs reais embutidos inline — nenhuma chamada externa) com 6 estilos candidatos do DiceBear lado a lado (avataaars, notionists, micah, open-peeps, big-smile, croodles), 4 exemplos cada. Usuário escolheu **avataaars** e **micah**.

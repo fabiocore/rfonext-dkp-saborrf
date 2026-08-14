@@ -561,14 +561,7 @@ export class AuctionsService {
         freshItem.bids.filter((b) => !withdrawnIds.has(b.characterId)).map((b) => b.characterId),
       );
 
-      if (activeBidderIds.size === 0) {
-        // Todo mundo desistiu — item volta a ser "Não reclamado", igual a
-        // um item que expirou sem nenhum lance.
-        await tx.auctionItem.update({
-          where: { id: auctionItemId },
-          data: { resolutionStatus: 'UNCLAIMED', resolvedAt: new Date() },
-        });
-      } else if (activeBidderIds.size === 1) {
+      if (activeBidderIds.size === 1) {
         // Só sobrou 1 concorrente com lance — ele vence na hora, sem
         // precisar esperar o leilão expirar. Sem empate possível aqui (só
         // tem 1 pessoa), então nunca precisa de desempate no dado.
@@ -589,8 +582,14 @@ export class AuctionsService {
           data: { resolutionStatus: 'WON', winningBidId: winningBid.id, resolvedAt: new Date() },
         });
       }
-      // Se sobrar mais de 1 concorrente ativo, nada muda — item continua
-      // PENDING, aberto pros demais.
+      // Se sobrar 0 ou 2+ concorrentes ativos, nada muda — item continua
+      // PENDING, aberto pra quem ainda não deu lance também. "Não
+      // reclamado" só é decidido de verdade no fechamento do leilão
+      // (resolvePendingItem), nunca no momento da desistência — corrigido
+      // em 2026-08-12: antes, 0 concorrentes ativos fechava o item na hora
+      // como "Não reclamado", mesmo com o leilão ainda aberto por dias,
+      // tirando a chance de outros elegíveis que ainda não tinham dado
+      // lance disputarem o item até o prazo real.
 
       return { withdrawn: true };
     });
