@@ -1,5 +1,19 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Igualar Lance (all-in) + desempate por 2d6 com reroll em empate
+
+**Pedido**: quem não tem saldo pra superar o lance líder (+1) mas tem exatamente o suficiente pra empatar ficava sem opção — o campo de lance manual bloqueia isso pelo atributo HTML `min`. Levantamento antes de implementar (a pedido do usuário) descobriu que o **backend já aceitava** lance = líder desde sempre (`placeBid` só exige "≥ líder", nunca exigiu "líder + 1" de verdade — isso é só a sugestão mostrada na tela); a trava era 100% de UI. Aproveitado pra também corrigir um gap real no desempate: o dado antigo (1d100) empatava silenciosamente na ordem da lista sem avisar nem rolar de novo.
+
+**"Igualar Lance"**: botão novo, separado do campo de lance normal, **sempre visível** quando há líder e o jogador não está empatado com ele — mas o usuário pediu explicitamente que só aceite quando for uma aposta **all-in de verdade** (saldo disponível == lance líder, exato). Backend: novo endpoint dedicado `POST /player-auctions/:code/items/:itemId/match-bid` → `AuctionsService.matchLeadingBid`, que calcula o valor sozinho (nunca vem do jogador) e devolve o motivo exato de qualquer rejeição: saldo insuficiente (com o valor que falta), saldo maior que o líder (não é all-in — usa o campo normal), já liderando, ou sem líder pra igualar ainda.
+
+**Desempate por 2 dados de 6 lados, com reroll em empate**: trocado o 1d100 por 2d6 por pessoa (soma 2–12), extraído em `dice-tiebreak.util.ts` (função pura, RNG injetável). Se o maior valor empatar entre 2+ pessoas, só esse subgrupo rola de novo — quem já perdeu não volta — até decidir. Todas as rodadas ficam guardadas (não só a final) e aparecem no painel público (`/leiloes/:id`) com os 2 dados de cada pessoa por rodada e um aviso explícito de empate quando é o caso ("empate — dados rolados de novo"). Leilões já encerrados com o formato antigo (1 dado, 1 rodada) continuam exibindo certo — o painel reconhece os dois formatos.
+
+**Testes (TDD, mesmo processo da rodada anterior)**:
+- `dice-tiebreak.util.spec.ts` — 7 testes unitários: 1 candidato, sem empate, empate resolvido numa 2ª rodada só entre quem empatou, 3 candidatos (quem perde não volta), empates seguidos até decidir, trava de segurança contra empate infinito, erro sem candidato.
+- `auctions.service.spec.ts` (primeiros testes desse arquivo) — 7 testes de integração contra Postgres real: aceita saldo exatamente igual (all-in), rejeita já-líder, rejeita saldo menor, rejeita saldo maior (não é all-in), rejeita sem líder pra igualar, rejeita nível insuficiente, rejeita código inválido.
+
+**Validação manual completa no dev local** (via browser real, além dos automatizados): os 3 cenários de saldo do Igualar Lance (exato/insuficiente/excedente) com as mensagens de erro certas, e um empate real de 2d6 forçado (rodada 1 empatou 7×7, rodada 2 decidiu) conferido na tela pública com o aviso de reroll exibido corretamente. Dados de teste limpos do banco de dev depois.
+
 ## 2026-08-14 — Puxar participantes de atividades semanais na criação do leilão (com testes automatizados)
 
 **Pedido**: marcar participante de leilão um por um era repetitivo, já que o import já sabe quem fez Raid/Expedição/Confronto pelo Paraíso etc. naquela semana. Pedido explícito do usuário, dada a complexidade: **testes automatizados escritos antes da implementação**, validação completa no ambiente de desenvolvimento antes de ir pra produção, e dev/prod sempre na mesma versão (sem gap entre os dois).

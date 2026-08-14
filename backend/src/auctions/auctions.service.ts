@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/decorators/current-user.decorator';
+import { rollTiebreakDice } from './dice-tiebreak.util';
 
 type ResolvableItem = {
   id: string;
@@ -528,6 +529,97 @@ export class AuctionsService {
   }
 
   /**
+   * "Igualar Lance": ação separada do lance manual, pensada especificamente
+   * pra quem NÃO tem saldo pra superar o líder (+1) mas tem exatamente o
+   * suficiente pra igualar. Por decisão explícita do GM, só aceita quando
+   * for uma aposta all-in de verdade — o valor do lance líder precisa ser
+   * EXATAMENTE igual ao saldo disponível do personagem nesse momento, nem
+   * menos (saldo insuficiente) nem mais (aí é pra usar o campo de lance
+   * normal e superar, não igualar). Cada rejeição devolve o motivo exato,
+   * pra nunca gerar dúvida sobre por que o botão não funcionou. Reaproveita
+   * o mesmo lock por personagem do placeBid, mas é um método separado (não
+   * uma variação de placeBid) porque a regra de valor é fundamentalmente
+   * diferente: aqui o valor não vem do jogador, é sempre o lance líder.
+   */
+  async matchLeadingBid(code: string, auctionItemId: string) {
+    const itemRef = await this.prisma.auctionItem.findUnique({
+      where: { id: auctionItemId },
+      select: { auctionId: true },
+    });
+    if (!itemRef) throw new NotFoundException('Item não encontrado.');
+
+    const participant = await this.resolveParticipant(code, itemRef.auctionId);
+    const auction = participant.auction;
+
+    if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {
+      throw new BadRequestException('Este leilão não está mais aberto para lances.');
+    }
+
+    const item = auction.items.find((i) => i.id === auctionItemId);
+    if (!item) throw new NotFoundException('Item não encontrado neste leilão.');
+    if (!this.isEligible(participant.character, item)) {
+      throw new ForbiddenException('Você não atinge o nível mínimo exigido para este item.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${participant.characterId})::bigint)`;
+
+      const freshItem = await tx.auctionItem.findUnique({
+        where: { id: auctionItemId },
+        select: { resolutionStatus: true },
+      });
+      if (!freshItem || freshItem.resolutionStatus !== 'PENDING') {
+        throw new BadRequestException('Este item já foi resolvido e não aceita mais lances.');
+      }
+      const itemWithdrawals = await tx.auctionItemWithdrawal.findMany({
+        where: { auctionItemId },
+        select: { characterId: true },
+      });
+      const withdrawnIds = itemWithdrawals.map((w) => w.characterId);
+      if (withdrawnIds.includes(participant.characterId)) {
+        throw new BadRequestException('Você já desistiu deste item e não pode mais dar lances nele.');
+      }
+
+      const leadingAgg = await tx.bid.aggregate({
+        where: { auctionItemId, characterId: { notIn: withdrawnIds } },
+        _max: { amount: true },
+      });
+      const leadingAmount = leadingAgg._max.amount ?? 0;
+      if (leadingAmount <= 0) {
+        throw new BadRequestException('Ainda não há lance líder para igualar neste item.');
+      }
+
+      const ownAgg = await tx.bid.aggregate({
+        where: { auctionItemId, characterId: participant.characterId },
+        _max: { amount: true },
+      });
+      const ownAmount = ownAgg._max.amount ?? 0;
+      if (ownAmount >= leadingAmount) {
+        throw new BadRequestException('Você já está empatado ou liderando este item.');
+      }
+
+      const walletBalance = await this.getBalanceTx(tx, participant.characterId);
+      const hold = await this.computeHoldTx(tx, participant.characterId, auctionItemId);
+      const available = walletBalance - hold;
+
+      if (available < leadingAmount) {
+        throw new BadRequestException(
+          `Saldo disponível insuficiente para igualar este lance. Você tem ${available} disponível e precisa de ${leadingAmount}.`,
+        );
+      }
+      if (available > leadingAmount) {
+        throw new BadRequestException(
+          `Você ainda tem saldo pra superar o lance atual (disponível: ${available}) — o botão Igualar só funciona quando for sua aposta máxima (all-in). Dê um lance maior no campo acima.`,
+        );
+      }
+
+      return tx.bid.create({
+        data: { auctionItemId, characterId: participant.characterId, amount: leadingAmount },
+      });
+    });
+  }
+
+  /**
    * Jogador desiste de um item em que já deu lance. O lance nunca é
    * apagado (Bid é append-only) — só passa a ser ignorado nos cálculos de
    * líder/hold/vitória a partir de agora. Trava por ITEM (não por
@@ -679,14 +771,15 @@ export class AuctionsService {
     let winningBid = tiedBids[0];
     let diceRollDetail: unknown = null;
     if (tiedBids.length > 1) {
-      const rolls = tiedBids.map((bid) => ({
-        characterId: bid.characterId,
-        gameName: bid.character.gameName,
-        roll: 1 + Math.floor(Math.random() * 100),
-      }));
-      const highest = rolls.reduce((best, r) => (r.roll > best.roll ? r : best), rolls[0]);
-      winningBid = tiedBids.find((b) => b.characterId === highest.characterId)!;
-      diceRollDetail = { rolls, winnerCharacterId: highest.characterId };
+      // Desempate por 2d6 (2 dados de 6 lados) — se o maior empatar entre
+      // 2+ pessoas, só o subgrupo empatado rola de novo, até decidir. Todas
+      // as rodadas ficam salvas pra transparência pública total (ver
+      // PublicAuctionDetailPage) — não é só o resultado final.
+      const result = rollTiebreakDice(
+        tiedBids.map((bid) => ({ characterId: bid.characterId, gameName: bid.character.gameName })),
+      );
+      winningBid = tiedBids.find((b) => b.characterId === result.winnerCharacterId)!;
+      diceRollDetail = result;
     }
 
     await tx.ledgerTransaction.create({

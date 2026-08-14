@@ -26,6 +26,13 @@ export class PlayerAuctionsController {
     return this.auctionsService.placeBid(code, itemId, Number(amount));
   }
 
+  // "Igualar Lance": sem `amount` no body — o valor é sempre o lance líder
+  // atual, decidido pelo servidor (ver matchLeadingBid).
+  @Post(':code/items/:itemId/match-bid')
+  matchBid(@Param('code') code: string, @Param('itemId') itemId: string) {
+    return this.auctionsService.matchLeadingBid(code, itemId);
+  }
+
   @Post(':code/items/:itemId/withdraw')
   withdraw(@Param('code') code: string, @Param('itemId') itemId: string) {
     return this.auctionsService.withdrawFromItem(code, itemId);

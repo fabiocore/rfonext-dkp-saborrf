@@ -785,6 +785,12 @@ export async function placePlayerBid(code: string, itemId: string, amount: numbe
   return data;
 }
 
+/** "Igualar Lance" — sem valor no corpo, o servidor decide (sempre o lance líder atual). */
+export async function matchPlayerBid(code: string, itemId: string) {
+  const { data } = await apiClient.post(`/player-auctions/${code}/items/${itemId}/match-bid`);
+  return data;
+}
+
 export async function withdrawPlayerBid(code: string, itemId: string) {
   const { data } = await apiClient.post(`/player-auctions/${code}/items/${itemId}/withdraw`);
   return data;

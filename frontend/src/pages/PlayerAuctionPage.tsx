@@ -6,6 +6,7 @@ import {
   fetchGuildSettings,
   fetchMyAuctions,
   fetchPlayerAuctionView,
+  matchPlayerBid,
   placePlayerBid,
   withdrawPlayerBid,
   type MyAuctionSummary,
@@ -48,8 +49,22 @@ function ItemCard({
     onError: (err: any) => setError(err?.response?.data?.message ?? (t('player.genericError') as string)),
   });
 
+  const matchMutation = useMutation({
+    mutationFn: () => matchPlayerBid(code, item.id),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ['player-auction', code] });
+    },
+    onError: (err: any) => setError(err?.response?.data?.message ?? (t('player.genericError') as string)),
+  });
+
   const resolved = item.resolutionStatus !== 'PENDING';
   const canWithdraw = item.ownAmount > 0 && !item.withdrawn && !resolved && !disabled;
+  // Sempre visível quando há um lance líder pra igualar e o jogador ainda não
+  // está empatado com ele — o backend decide se aceita (só aceita all-in de
+  // verdade, saldo disponível == lance líder) e devolve o motivo exato
+  // quando rejeita, então não escondemos o botão por causa do saldo aqui.
+  const canMatch = item.eligible && !disabled && !resolved && !item.withdrawn && item.leadingAmount > 0 && item.ownAmount < item.leadingAmount;
 
   return (
     <div className="auction-item-card">
@@ -100,6 +115,12 @@ function ItemCard({
             {t('player.placeBid')}
           </button>
         </form>
+      )}
+
+      {canMatch && (
+        <button type="button" onClick={() => matchMutation.mutate()} disabled={matchMutation.isPending}>
+          {t('player.matchBid', { amount: item.leadingAmount, currencyAbbr })}
+        </button>
       )}
 
       {canWithdraw && (

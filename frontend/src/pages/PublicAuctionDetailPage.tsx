@@ -4,6 +4,49 @@ import { useParams } from 'react-router-dom';
 import { fetchGuildSettings, fetchPublicAuctionDetail } from '../api/client';
 import { TableScroll } from '../components/TableScroll';
 
+/**
+ * Desempate por dado, 100% público e auditável. Suporta 2 formatos:
+ * o novo (2d6 por pessoa, com todas as rodadas — inclusive quando o próprio
+ * dado empata e precisa rolar de novo) e o antigo (1 dado só, 1 rodada, de
+ * leilões encerrados antes desta mudança) — pra não quebrar o histórico já
+ * publicado.
+ */
+function DiceTiebreakDetail({ detail }: { detail: unknown }) {
+  const { t } = useTranslation();
+  const d = detail as any;
+  if (!d) return null;
+
+  if (Array.isArray(d.rounds)) {
+    return (
+      <div>
+        <p className="subtitle">{t('auctions.diceTiebreakIntro')}</p>
+        {d.rounds.map((round: any, idx: number) => {
+          const isLast = idx === d.rounds.length - 1;
+          const rollsText = round.rolls
+            .map((r: any) => `${r.gameName} 🎲${r.die1}+🎲${r.die2}=${r.total}`)
+            .join(', ');
+          return (
+            <p key={idx} className="subtitle">
+              {t('auctions.diceRound', { round: idx + 1, rolls: rollsText })}
+              {!isLast && ` — ${t('auctions.diceDraw')}`}
+            </p>
+          );
+        })}
+      </div>
+    );
+  }
+
+  if (Array.isArray(d.rolls)) {
+    return (
+      <p className="subtitle">
+        {t('auctions.diceTiebreak', { rolls: d.rolls.map((r: any) => `${r.gameName} ${r.roll}`).join(', ') })}
+      </p>
+    );
+  }
+
+  return null;
+}
+
 export function PublicAuctionDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
@@ -41,17 +84,16 @@ export function PublicAuctionDetailPage() {
               {item.protection && <span className="badge">{item.protection.name}</span>}
             </h3>
             {item.resolutionStatus === 'WON' && item.winningBid && (
-              <p className="form-success">
-                {t('auctions.winner', {
-                  gameName: item.winningBid.character.gameName,
-                  amount: item.winningBid.amount,
-                  currencyAbbr,
-                })}
-                {Array.isArray((item.diceRollDetail as any)?.rolls) &&
-                  t('auctions.diceTiebreak', {
-                    rolls: (item.diceRollDetail as any).rolls.map((r: any) => `${r.gameName} ${r.roll}`).join(', '),
+              <div className="form-success">
+                <p>
+                  {t('auctions.winner', {
+                    gameName: item.winningBid.character.gameName,
+                    amount: item.winningBid.amount,
+                    currencyAbbr,
                   })}
-              </p>
+                </p>
+                <DiceTiebreakDetail detail={item.diceRollDetail} />
+              </div>
             )}
             {item.resolutionStatus === 'UNCLAIMED' && <p className="form-error">{t('auctions.unclaimed')}</p>}
             {item.resolutionStatus === 'CANCELLED' && (
