@@ -189,3 +189,84 @@ describe('AuctionsService.matchLeadingBid (integração)', () => {
     await expect(service.matchLeadingBid('CODIGO-INEXISTENTE', itemWithLeaderId)).rejects.toThrow(/código inválido/i);
   });
 });
+
+/**
+ * O dropdown do front já filtra proteção desativada (AuctionBuilderPage),
+ * mas isso sozinho é frágil — cache desatualizada, outra aba, ou chamada
+ * direta na API ainda conseguiam anexar uma proteção desativada a um item
+ * novo. Esses testes cobrem a trava de verdade, no backend.
+ */
+describe('AuctionsService.addItem / updateItem — proteção desativada (integração)', () => {
+  let service: AuctionsService;
+  let prisma: PrismaService;
+
+  let auctionId: string;
+  let activeProtectionId: string;
+  let inactiveProtectionId: string;
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [AuctionsService, PrismaService],
+    }).compile();
+    service = moduleRef.get(AuctionsService);
+    prisma = moduleRef.get(PrismaService);
+    await prisma.$connect();
+
+    const auction = await prisma.auction.create({
+      data: { title: 'IntegTestProtection_Leilao', status: 'DRAFT', createdById: 'integtest' },
+    });
+    auctionId = auction.id;
+
+    const active = await prisma.protection.create({
+      data: { name: 'IntegTestProtection_Ativa', description: 'teste', minBid: 10, minLevel: 1, isActive: true },
+    });
+    activeProtectionId = active.id;
+
+    const inactive = await prisma.protection.create({
+      data: { name: 'IntegTestProtection_Inativa', description: 'teste', minBid: 10, minLevel: 1, isActive: false },
+    });
+    inactiveProtectionId = inactive.id;
+  });
+
+  afterAll(async () => {
+    await prisma.auctionItem.deleteMany({ where: { auctionId } });
+    await prisma.auction.delete({ where: { id: auctionId } });
+    await prisma.protection.deleteMany({ where: { id: { in: [activeProtectionId, inactiveProtectionId] } } });
+    await prisma.$disconnect();
+  });
+
+  it('addItem rejeita proteção desativada', async () => {
+    await expect(
+      service.addItem(auctionId, { name: 'Item teste', protectionId: inactiveProtectionId }),
+    ).rejects.toThrow(/desativada/i);
+  });
+
+  it('addItem aceita proteção ativa', async () => {
+    const item = await service.addItem(auctionId, { name: 'Item teste ativa', protectionId: activeProtectionId });
+    expect(item.protectionId).toBe(activeProtectionId);
+  });
+
+  it('addItem aceita sem proteção nenhuma', async () => {
+    const item = await service.addItem(auctionId, { name: 'Item teste sem protecao' });
+    expect(item.protectionId).toBeNull();
+  });
+
+  it('addItem rejeita id de proteção inexistente', async () => {
+    await expect(
+      service.addItem(auctionId, { name: 'Item teste', protectionId: 'id-que-nao-existe' }),
+    ).rejects.toThrow(/não encontrada/i);
+  });
+
+  it('updateItem rejeita trocar pra proteção desativada', async () => {
+    const item = await service.addItem(auctionId, { name: 'Item pra editar' });
+    await expect(
+      service.updateItem(auctionId, item.id, { protectionId: inactiveProtectionId }),
+    ).rejects.toThrow(/desativada/i);
+  });
+
+  it('updateItem aceita remover a proteção (protectionId: null)', async () => {
+    const item = await service.addItem(auctionId, { name: 'Item pra limpar', protectionId: activeProtectionId });
+    const updated = await service.updateItem(auctionId, item.id, { protectionId: null });
+    expect(updated.protectionId).toBeNull();
+  });
+});

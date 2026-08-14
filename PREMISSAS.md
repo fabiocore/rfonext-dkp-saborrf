@@ -88,6 +88,7 @@
 - Totalmente editável pelo GM/conselho: nome (ex: PCE1, PCES2), descrição em texto livre (explicando a regra, tipo "Elite Carrie T1 lvl 57+"), lance mínimo em BRC, nível mínimo de personagem exigido.
 - Podem ser criadas, editadas ou removidas livremente — o conjunto inicial (PCE1-4, PCES1-2) é só o ponto de partida documentado nas regras da SaborRF.
 - Na tela de cadastro de item de leilão, a lista de proteções deve aparecer com a **descrição completa visível** (não só a sigla), já que quem cadastra o item pode não ser o autor da regra e precisa entender do que se trata sem precisar perguntar.
+- **Proteção desativada não pode ser anexada a item novo** (reforçado em 2026-08-14): o dropdown do admin já filtrava isso, mas só no cliente — o backend (`addItem`/`updateItem`, ambos só funcionam com o leilão em rascunho/aguardando aprovação) agora valida de verdade, rejeitando qualquer tentativa de usar `protectionId` de uma proteção com `isActive: false` (ou inexistente), inclusive via chamada direta à API. Não afeta itens que já usavam a proteção antes dela ser desativada — só bloqueia anexar ela a algo novo.
 
 ## 7. Leilão
 

@@ -60,12 +60,32 @@ export class AuctionsService {
     return auction;
   }
 
+  /**
+   * Proteção desativada não pode ser anexada a item novo nem posta num item
+   * existente — o dropdown do admin já filtra isso (AuctionBuilderPage),
+   * mas só no cliente, então não é uma garantia de verdade (cache
+   * desatualizada, outra aba, chamada direta na API). `null`/`undefined`
+   * passa direto (sem proteção, ou "não mexer no campo" no updateItem).
+   */
+  private async assertProtectionActive(protectionId: string | null | undefined) {
+    if (!protectionId) return;
+    const protection = await this.prisma.protection.findUnique({
+      where: { id: protectionId },
+      select: { isActive: true },
+    });
+    if (!protection) throw new NotFoundException('Proteção não encontrada.');
+    if (!protection.isActive) {
+      throw new BadRequestException('Esta proteção está desativada e não pode ser usada em itens novos.');
+    }
+  }
+
   async addItem(
     auctionId: string,
     data: { name: string; description?: string; protectionId?: string | null; imageUrl?: string | null },
   ) {
     await this.assertEditable(auctionId);
     if (!data.name?.trim()) throw new BadRequestException('Nome do item é obrigatório.');
+    await this.assertProtectionActive(data.protectionId);
     return this.prisma.auctionItem.create({
       data: {
         auctionId,
@@ -83,6 +103,7 @@ export class AuctionsService {
     data: { name?: string; description?: string; protectionId?: string | null; imageUrl?: string | null },
   ) {
     await this.assertEditable(auctionId);
+    await this.assertProtectionActive(data.protectionId);
     return this.prisma.auctionItem.update({ where: { id: itemId }, data });
   }
 

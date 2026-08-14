@@ -1,5 +1,11 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Proteção desativada não pode mais ser anexada a item de leilão (trava no backend)
+
+O dropdown de "Adicionar item" no rascunho de leilão já filtrava proteção desativada (`.filter(p => p.isActive)`), mas isso sozinho era uma garantia frágil — só de UI. Confirmado com uma chamada direta à API (`fetch` manual, bypassando o formulário) que `addItem`/`updateItem` aceitavam qualquer `protectionId`, mesmo de proteção desativada, sem nenhuma checagem no servidor.
+
+Adicionada validação de verdade em `AuctionsService` (`addItem` e `updateItem`, os dois únicos pontos que aceitam `protectionId`, válidos só com o leilão em rascunho/aguardando aprovação): rejeita com mensagem clara se a proteção estiver desativada ou não existir. 6 testes de integração novos (aceita ativa, rejeita desativada, rejeita inexistente, aceita sem proteção, aceita limpar a proteção num update). Verificado manualmente que a chamada direta à API que antes funcionava agora é rejeitada (400).
+
 ## 2026-08-14 — Identidade visual dourada pros cards de leilão na home
 
 Apresentadas 3 opções de cor pra diferenciar "Leilões em Andamento" de "Próximos Eventos" (que usam o mesmo roxo hoje): laranja reaproveitando `--warning`, dourado novo, ou verde reaproveitando `--success`. Escolhido dourado. Token novo `--gold`/`--gold-hover`/`--gold-bg`/`--gold-border` em `index.css`; `CountdownBadge` ganhou prop `tone` ('accent' | 'gold'); cards de leilão na home ganharam borda esquerda + título dourados. Verificado visualmente lado a lado no dev local (leilão dourado em cima, evento roxo embaixo).
