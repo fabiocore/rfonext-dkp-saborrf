@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Fix: checkbox empilhado acima do nome nas telas de seleção de personagens
+
+`.checkbox-grid label` não definia `flex-direction` nem `font-weight` — dentro de um `.settings-form` (que define `flex-direction: column` e `font-weight: 600` nos labels), essas propriedades vazavam pro grid de checkboxes, empilhando o checkbox acima do nome do personagem em vez de ao lado (confuso pra selecionar rápido). Corrigido com `flex-direction: row` e `font-weight: normal` explícitos em `.checkbox-grid label` — um único ponto no CSS, corrige de uma vez em Emissão Manual, Atividades do Jogo, Eventos Personalizados e criação de Leilão (todas usam o mesmo componente).
+
 ## 2026-08-14 — Nível mínimo visível no leilão + coluna de saldo reservado em Saldos
 
 **Pedido 1**: jogador que esqueceu de cadastrar o nível antes do leilão começar — ele consegue atualizar depois e o leilão libera sozinho? Validado antes de mexer em qualquer coisa (a pedido do usuário, com 2 leilões reais em andamento em produção): **sim, já funcionava** — elegibilidade é recalculada do zero em toda requisição (nunca fica "congelada" no nível de quando o leilão abriu), e nível é self-service com aplicação imediata. O único gap real era a mensagem de erro: só dizia "não atinge o requisito", sem dizer nível mínimo, nível atual, ou como corrigir.
