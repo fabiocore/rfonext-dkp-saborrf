@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Activity } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { periodStartUtc, nextPeriodStartUtc } from '../common/period.util';
 
 @Injectable()
 export class ActivitiesService {
@@ -164,6 +165,65 @@ export class ActivitiesService {
       where: { isComposite: true },
       include: { componentsOf: { include: { componentActivity: true } } },
     });
+  }
+
+  /**
+   * Pra cada atividade pedida, acha a SEMANA CIVIL mais recente que teve
+   * emissão (`ACTIVITY_EMISSION`) e devolve quem recebeu BRC dela — usado
+   * na criação de leilão pra pré-marcar participantes de eventos semanais
+   * (Raid de Guilda etc.) sem precisar checar um por um manualmente
+   * (PREMISSAS.md seção 7). Busca por JANELA de semana (segunda a domingo),
+   * não por data exata: o "checked" do jogo gruda em todo import até o
+   * reset semanal, então dois personagens do mesmo evento podem ter
+   * `sourceReferenceDate` em dias diferentes dentro da mesma semana,
+   * dependendo de qual import cada um apareceu marcado pela primeira vez
+   * (mesma regra de `LedgerService.canEmitPeriodic`, reaproveitando
+   * `periodStartUtc`/`nextPeriodStartUtc` pra ficar garantidamente
+   * consistente com o que decide "isso é uma emissão nova ou a mesma
+   * ocorrência de novo"). Atividade sem nenhuma emissão ainda devolve lista
+   * vazia (`weekStart`/`weekEnd` nulos), sem erro.
+   */
+  async getRecentWeeklyParticipants(activityIds: string[]) {
+    const activities = await this.prisma.activity.findMany({
+      where: { id: { in: activityIds } },
+      select: { id: true, name: true },
+    });
+    const nameById = new Map(activities.map((a) => [a.id, a.name]));
+
+    return Promise.all(
+      activityIds.map(async (activityId) => {
+        const latest = await this.prisma.ledgerTransaction.findFirst({
+          where: { sourceActivityId: activityId, type: 'ACTIVITY_EMISSION' },
+          orderBy: { sourceReferenceDate: 'desc' },
+          select: { sourceReferenceDate: true },
+        });
+
+        if (!latest?.sourceReferenceDate) {
+          return { activityId, activityName: nameById.get(activityId) ?? '', weekStart: null, weekEnd: null, characterIds: [] };
+        }
+
+        const weekStart = periodStartUtc('WEEKLY', latest.sourceReferenceDate);
+        const weekEnd = nextPeriodStartUtc('WEEKLY', weekStart);
+
+        const emissions = await this.prisma.ledgerTransaction.findMany({
+          where: {
+            sourceActivityId: activityId,
+            type: 'ACTIVITY_EMISSION',
+            sourceReferenceDate: { gte: weekStart, lt: weekEnd },
+          },
+          select: { characterId: true },
+          distinct: ['characterId'],
+        });
+
+        return {
+          activityId,
+          activityName: nameById.get(activityId) ?? '',
+          weekStart: weekStart.toISOString(),
+          weekEnd: weekEnd.toISOString(),
+          characterIds: emissions.map((e) => e.characterId),
+        };
+      }),
+    );
   }
 
   /** Painel público de eventos — puramente informativo (PREMISSAS.md seção 5). */

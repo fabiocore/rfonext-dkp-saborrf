@@ -7,9 +7,12 @@ import {
   cancelAuctionItem,
   closeAuction,
   deleteAuctionDraft,
+  fetchActivities,
   fetchAuctionStaff,
   fetchCharacters,
+  fetchGuildSettings,
   fetchProtections,
+  fetchRecentActivityParticipants,
   forceDeleteAuction,
   forceDeleteAuctionItem,
   isGmLevel,
@@ -108,6 +111,20 @@ export function AuctionBuilderPage() {
     refetchInterval: 5000,
   });
   const charactersQuery = useQuery({ queryKey: ['characters'], queryFn: fetchCharacters });
+  const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
+  const currencyAbbr = settingsQuery.data?.currencyAbbr ?? '';
+  const activitiesQuery = useQuery({ queryKey: ['activities'], queryFn: fetchActivities });
+  const weeklyActivities = (activitiesQuery.data ?? []).filter((a) => a.recurrencePeriod === 'WEEKLY');
+  const weeklyActivityIds = weeklyActivities.map((a) => a.id);
+  // Busca a semana mais recente de TODAS as atividades semanais de uma vez
+  // (não só as marcadas) — mostra a informação (semana/quantas pessoas) na
+  // hora, antes do GM decidir o que marcar, em vez de um passo "às cegas".
+  const recentParticipantsQuery = useQuery({
+    queryKey: ['recent-activity-participants', weeklyActivityIds.join(',')],
+    queryFn: () => fetchRecentActivityParticipants(weeklyActivityIds),
+    enabled: weeklyActivityIds.length > 0,
+  });
+  const [checkedActivityIds, setCheckedActivityIds] = useState<Set<string>>(new Set());
 
   const auction = auctionQuery.data;
   const editable = auction?.status === 'DRAFT' || auction?.status === 'PENDING_APPROVAL';
@@ -259,6 +276,32 @@ export function AuctionBuilderPage() {
     setSelectedParticipants(next);
   }
 
+  function toggleActivityCheck(activityId: string) {
+    const next = new Set(checkedActivityIds);
+    if (next.has(activityId)) next.delete(activityId);
+    else next.add(activityId);
+    setCheckedActivityIds(next);
+  }
+
+  /**
+   * Substitui a seleção de participantes pela união de quem recebeu as
+   * atividades marcadas na semana mais recente de cada uma — pedido do
+   * usuário (2026-08-14): a lista de participantes já vem pronta do
+   * import, não devia precisar checar um por um manualmente toda vez.
+   */
+  function applyActivitySelection() {
+    const results = recentParticipantsQuery.data ?? [];
+    const principalIds = new Set(principals.map((c) => c.id));
+    const union = new Set<string>();
+    for (const result of results) {
+      if (!checkedActivityIds.has(result.activityId)) continue;
+      for (const characterId of result.characterIds) {
+        if (principalIds.has(characterId)) union.add(characterId);
+      }
+    }
+    setSelectedParticipants(union);
+  }
+
   if (!auction) return <p>Carregando...</p>;
 
   const alreadyApproved = auction.approvals.some((a) => a.userId === user?.id);
@@ -368,6 +411,46 @@ export function AuctionBuilderPage() {
             no perfil dele — não precisa distribuir nada novo). Se algum item tiver proteção, quem não bate o nível
             mínimo consegue ver mas não consegue dar lance só naquele item específico.
           </p>
+          {weeklyActivities.length > 0 && (
+            <div className="auction-item-card" style={{ marginBottom: 12 }}>
+              <h4 style={{ marginTop: 0 }}>Puxar participantes de atividades semanais</h4>
+              <p className="subtitle">
+                Marque as atividades do evento e clique em aplicar — substitui a seleção abaixo pela união de quem
+                recebeu {currencyAbbr} nelas na semana mais recente (segunda a domingo civil), não num dia exato.
+              </p>
+              {weeklyActivities.map((activity) => {
+                const info = recentParticipantsQuery.data?.find((r) => r.activityId === activity.id);
+                return (
+                  <label key={activity.id} style={{ display: 'block', marginBottom: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={checkedActivityIds.has(activity.id)}
+                      onChange={() => toggleActivityCheck(activity.id)}
+                    />{' '}
+                    {activity.name}{' '}
+                    <span className="subtitle">
+                      {recentParticipantsQuery.isLoading && '(carregando...)'}
+                      {info && !info.weekStart && '— sem emissão registrada ainda'}
+                      {info && info.weekStart && info.weekEnd && (
+                        <>
+                          — semana de {new Date(info.weekStart).toLocaleDateString('pt-BR', { timeZone: 'UTC' })} a{' '}
+                          {new Date(new Date(info.weekEnd).getTime() - 86400000).toLocaleDateString('pt-BR', {
+                            timeZone: 'UTC',
+                          })}{' '}
+                          ({info.characterIds.length} pessoa{info.characterIds.length === 1 ? '' : 's'})
+                        </>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+              <button type="button" onClick={applyActivitySelection} disabled={checkedActivityIds.size === 0}>
+                Aplicar seleção ({checkedActivityIds.size} atividade{checkedActivityIds.size === 1 ? '' : 's'} marcada
+                {checkedActivityIds.size === 1 ? '' : 's'})
+              </button>
+            </div>
+          )}
+
           <div>
             <button type="button" onClick={() => setSelectedParticipants(new Set(principals.map((c) => c.id)))}>
               Selecionar todos

@@ -272,6 +272,22 @@ export async function fetchActivities(): Promise<Activity[]> {
   return data;
 }
 
+export interface RecentActivityParticipants {
+  activityId: string;
+  activityName: string;
+  weekStart: string | null;
+  weekEnd: string | null;
+  characterIds: string[];
+}
+
+/** Busca a semana civil mais recente com emissão de cada atividade e quem recebeu — usado pra pré-marcar participantes de leilão. */
+export async function fetchRecentActivityParticipants(activityIds: string[]): Promise<RecentActivityParticipants[]> {
+  const { data } = await apiClient.get<RecentActivityParticipants[]>('/activities/recent-participants', {
+    params: { activityIds: activityIds.join(',') },
+  });
+  return data;
+}
+
 export async function createActivity(payload: Partial<Activity>): Promise<Activity> {
   const { data } = await apiClient.post<Activity>('/activities', payload);
   return data;

@@ -2,36 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { LedgerTransactionType, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-
-/**
- * Início (00:00 UTC) do período civil (semana ou mês) que contém `date` —
- * usado pra agrupar atividades WEEKLY/MONTHLY. `date` é sempre um
- * referenceDate (data-só, meia-noite UTC), então o corte é por dia
- * calendário, não pelo horário exato das 07h GMT-3 do reset real do jogo
- * (o dado de origem não tem granularidade de hora pra ser mais preciso).
- * Semana = segunda a domingo. Mês = dia 1º ao último dia do mês.
- */
-function periodStartUtc(period: 'WEEKLY' | 'MONTHLY', date: Date): Date {
-  if (period === 'MONTHLY') {
-    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-  }
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const day = d.getUTCDay(); // 0=domingo..6=sábado
-  const diffToMonday = (day + 6) % 7; // segunda=0, terça=1, ..., domingo=6
-  d.setUTCDate(d.getUTCDate() - diffToMonday);
-  return d;
-}
-
-/** Início (00:00 UTC) do período civil SEGUINTE a `periodStart` — fim exclusivo do range. */
-function nextPeriodStartUtc(period: 'WEEKLY' | 'MONTHLY', periodStart: Date): Date {
-  const d = new Date(periodStart);
-  if (period === 'MONTHLY') {
-    d.setUTCMonth(d.getUTCMonth() + 1);
-  } else {
-    d.setUTCDate(d.getUTCDate() + 7);
-  }
-  return d;
-}
+import { periodStartUtc, nextPeriodStartUtc } from '../common/period.util';
 
 @Injectable()
 export class LedgerService {

@@ -1,5 +1,23 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Puxar participantes de atividades semanais na criação do leilão (com testes automatizados)
+
+**Pedido**: marcar participante de leilão um por um era repetitivo, já que o import já sabe quem fez Raid/Expedição/Confronto pelo Paraíso etc. naquela semana. Pedido explícito do usuário, dada a complexidade: **testes automatizados escritos antes da implementação**, validação completa no ambiente de desenvolvimento antes de ir pra produção, e dev/prod sempre na mesma versão (sem gap entre os dois).
+
+**A nuance real (identificada em discussão antes de implementar)**: o "checked" do jogo gruda em todo import até o reset semanal — duas pessoas do mesmo evento podem ter `sourceReferenceDate` em **dias diferentes** dentro da mesma semana, dependendo de qual import cada uma apareceu marcada primeiro. Buscar só pela data exata mais recente perderia gente. A solução busca pela **janela da semana civil** (segunda a domingo) que contém a emissão mais recente, reaproveitando a mesma lógica de calendário que decide "isso é uma emissão nova?" (`periodStartUtc`/`nextPeriodStartUtc`, extraídos de `LedgerService` pra `backend/src/common/period.util.ts`, testável isoladamente).
+
+**Testes (primeiros do projeto — Jest já vinha configurado no scaffold, nunca usado)**:
+- `period.util.spec.ts` — 10 testes unitários puros da matemática de semana/mês (segunda, domingo, virada de mês, virada de ano).
+- `activities.service.spec.ts` — 6 testes de integração de verdade contra o Postgres do dev (sem mock), cobrindo exatamente a nuance acima: mesma semana em dias diferentes soma certo; semana anterior não entra; atividade sem emissão não quebra; múltiplas atividades resolvidas independentemente.
+
+**Backend**: `ActivitiesService.getRecentWeeklyParticipants(activityIds)` + `GET /activities/recent-participants?activityIds=`. Sem hardcode de nomes de atividade — funciona pra qualquer atividade `recurrencePeriod: WEEKLY` cadastrada, hoje ou no futuro.
+
+**Frontend** (`AuctionBuilderPage.tsx`, seção Participantes): novo bloco "Puxar participantes de atividades semanais" — checkboxes de todas as atividades semanais, cada uma já mostrando a janela de semana usada e quantas pessoas foram encontradas (ou "sem emissão registrada ainda") antes de aplicar. Botão aplica a **união** de todas as marcadas, **substituindo** a seleção de participantes atual — decisões confirmadas com o usuário antes de implementar.
+
+**Testado**: suite completa (`npm test`, 16/16) rodando junto sem conflito; teste manual ponta a ponta no navegador criando um leilão de teste de verdade — confirmado que "Raid de Guilda" com emissões sintéticas em dois dias diferentes da mesma semana retornou os 2 personagens certos, e que "Expedição da Guilda" (dado real de import) mostrou 26 pessoas da semana de 03-09/08. Participantes salvos corretamente no banco via API. Dados de teste (automatizados e manuais) sempre limpos ao final.
+
+## 2026-08-14 — Jogador pode gerar novo código de leilão + título em destaque
+
 ## 2026-08-14 — Jogador pode gerar novo código de leilão + título em destaque
 
 **Pedido**: depois do código de leilão virar fixo por personagem, usuário pediu que o próprio jogador também consiga gerar um novo (não só GM/conselho pelo admin) e que o título "Código de Leilão" no perfil ficasse destacado em laranja.

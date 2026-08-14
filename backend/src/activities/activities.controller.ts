@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ActivitiesService } from './activities.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 
@@ -10,6 +10,17 @@ export class ActivitiesController {
   @Get()
   findAll() {
     return this.activitiesService.findAll();
+  }
+
+  // Precisa vir antes de rotas com :id — senão o Nest tentaria casar
+  // "recent-participants" como se fosse um id de atividade.
+  @Get('recent-participants')
+  getRecentWeeklyParticipants(@Query('activityIds') activityIds: string) {
+    const ids = (activityIds ?? '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    return this.activitiesService.getRecentWeeklyParticipants(ids);
   }
 
   @Post()
