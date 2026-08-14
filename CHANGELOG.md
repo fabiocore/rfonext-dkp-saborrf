@@ -1,5 +1,17 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Jogador pode gerar novo código de leilão + título em destaque
+
+**Pedido**: depois do código de leilão virar fixo por personagem, usuário pediu que o próprio jogador também consiga gerar um novo (não só GM/conselho pelo admin) e que o título "Código de Leilão" no perfil ficasse destacado em laranja.
+
+**Backend**: `ProfileService.regenerateAuctionCode(code)` — resolve o personagem pelo código de perfil (mesma credencial de sempre), chama o `CharactersService.regenerateAuctionAccessCode` já existente (mesmo usado pelo admin) e devolve o perfil atualizado. Novo endpoint público `POST /public/profile/:code/regenerate-auction-code`.
+
+**Frontend**: botão "Gerar novo código" ao lado do "Copiar" na seção Código de Leilão do perfil, com confirmação (mesmo texto de aviso do botão equivalente no admin — código antigo para de funcionar na hora). Novo token `--warning` (laranja, `#fb923c`) em `index.css` e classe `.title-warning` — aplicada só nesse `<h2>`, não em títulos de seção em geral.
+
+**Testado ao vivo**: regenerei o código de um personagem real via API, confirmei o código antigo retornando "Código inválido" em `/player-auctions/:código` e o novo funcionando normalmente; revertido ao final. Conferido visualmente no navegador: botão aparece, título renderiza com `rgb(251, 146, 60)` (o `--warning`). `tsc -b && vite build` / `nest build` limpos.
+
+## 2026-08-14 — Código de leilão fixo por personagem (não era mais por leilão)
+
 ## 2026-08-14 — Código de leilão fixo por personagem (não era mais por leilão)
 
 **Pedido**: usuário reportou que o código de leilão era gerado de novo a cada leilão publicado, e redistribuir pra todo mundo toda vez estava "insano". Pediu um código **fixo por personagem**, consultável no próprio `/perfil`, separado do código de perfil — mas reforçou que o código não pode liberar acesso a leilões que a pessoa não participou (só quem está marcado como participante consegue ofertar; quem não participou já pode ver qualquer leilão pela página pública, sem código).

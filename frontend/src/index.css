@@ -16,6 +16,8 @@
   --success-bg: rgba(74, 222, 128, 0.15);
   --danger: #f87171;
   --danger-bg: rgba(248, 113, 113, 0.15);
+  --warning: #fb923c;
+  --warning-bg: rgba(251, 146, 60, 0.15);
 
   --radius-sm: 6px;
   --radius: 10px;

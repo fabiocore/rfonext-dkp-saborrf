@@ -581,6 +581,12 @@ button:disabled {
   margin-left: 0;
 }
 
+/* Destaque pontual num título (ex: "Código de Leilão" no perfil) — não é
+   estado semântico de erro/aviso, só chama atenção visualmente. */
+.title-warning {
+  color: var(--warning);
+}
+
 .components-editor {
   padding: 14px;
   background: var(--bg-elevated);

@@ -71,6 +71,17 @@ export class ProfileService {
     return this.getProfile(code);
   }
 
+  /**
+   * O próprio membro também pode gerar um código de leilão novo (ex: acha
+   * que alguém mais tem acesso) — mesmo efeito do botão equivalente no
+   * admin: o código anterior para de funcionar na hora.
+   */
+  async regenerateAuctionCode(code: string) {
+    const character = await this.resolveByCode(code);
+    await this.charactersService.regenerateAuctionAccessCode(character.id);
+    return this.getProfile(code);
+  }
+
   /** Aplica o nível na hora — print de comprovação é opcional (só fica registrado no histórico, ninguém revisa). */
   async updateLevel(code: string, level: number, proofImageUrl?: string) {
     const character = await this.resolveByCode(code);

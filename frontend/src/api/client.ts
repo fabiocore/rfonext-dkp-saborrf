@@ -390,6 +390,11 @@ export async function updateProfileDiscordId(code: string, discordId: string): P
   return data;
 }
 
+export async function regenerateMyAuctionCode(code: string): Promise<MemberProfile> {
+  const { data } = await apiClient.post<MemberProfile>(`/public/profile/${code}/regenerate-auction-code`);
+  return data;
+}
+
 export async function updateProfileAvatar(code: string, file: File): Promise<MemberProfile> {
   const formData = new FormData();
   formData.append('file', file);

@@ -6,6 +6,7 @@ import {
   fetchAvatarPresets,
   fetchGuildSettings,
   fetchProfile,
+  regenerateMyAuctionCode,
   selectAvatarPreset,
   updateProfileAvatar,
   updateProfileDiscordId,
@@ -38,6 +39,22 @@ export function ProfilePage() {
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [levelError, setLevelError] = useState<string | null>(null);
   const [levelSuccess, setLevelSuccess] = useState(false);
+
+  const [auctionCodeError, setAuctionCodeError] = useState<string | null>(null);
+
+  const regenerateAuctionCodeMutation = useMutation({
+    mutationFn: () => regenerateMyAuctionCode(code!),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['profile', code], data);
+      setAuctionCodeError(null);
+    },
+    onError: (err: any) => setAuctionCodeError(err?.response?.data?.message ?? (t('profile.auctionCodeError') as string)),
+  });
+
+  function handleRegenerateAuctionCode() {
+    if (!confirm(t('profile.auctionCodeRegenerateConfirm') as string)) return;
+    regenerateAuctionCodeMutation.mutate();
+  }
 
   const discordMutation = useMutation({
     mutationFn: () => updateProfileDiscordId(code!, discordId.trim()),
@@ -133,12 +150,16 @@ export function ProfilePage() {
       </p>
       <main>
         <section>
-          <h2>{t('profile.auctionCodeTitle')}</h2>
+          <h2 className="title-warning">{t('profile.auctionCodeTitle')}</h2>
           <p className="subtitle">{t('profile.auctionCodeSubtitle')}</p>
           <div className="inline-form">
             <strong style={{ fontSize: '1.1rem', letterSpacing: '0.08em' }}>{character.auctionAccessCode}</strong>
             <CopyCodeButton code={character.auctionAccessCode} />
+            <button type="button" onClick={handleRegenerateAuctionCode} disabled={regenerateAuctionCodeMutation.isPending}>
+              {t('profile.auctionCodeRegenerate')}
+            </button>
           </div>
+          {auctionCodeError && <p className="form-error">{auctionCodeError}</p>}
         </section>
 
         <section style={{ marginTop: 24 }}>

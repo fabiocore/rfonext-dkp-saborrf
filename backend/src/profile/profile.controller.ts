@@ -64,6 +64,11 @@ export class ProfileController {
     return this.profileService.updateAvatar(code, url);
   }
 
+  @Post(':code/regenerate-auction-code')
+  regenerateAuctionCode(@Param('code') code: string) {
+    return this.profileService.regenerateAuctionCode(code);
+  }
+
   @Put(':code/level')
   @UseInterceptors(imageUploadInterceptor)
   async updateLevel(
