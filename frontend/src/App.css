@@ -699,6 +699,25 @@ button:disabled {
   color: var(--success);
 }
 
+.countdown-badge-gold {
+  background: var(--gold-bg);
+  border-color: var(--gold-border);
+}
+
+.countdown-badge-gold .countdown-badge-label {
+  color: var(--gold);
+}
+
+/* Identidade visual dos cards de "Leilões em Andamento" na home — dourado,
+   separado do roxo genérico usado em "Próximos Eventos". */
+.event-card-auction {
+  border-left: 4px solid var(--gold);
+}
+
+.event-card-auction .event-card-main h3 {
+  color: var(--gold);
+}
+
 @media (max-width: 480px) {
   .event-card {
     flex-direction: column;

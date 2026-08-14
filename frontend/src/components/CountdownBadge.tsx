@@ -12,9 +12,21 @@ const pad = (n: number) => String(n).padStart(2, '0');
  * usado 1 por card (evento ou leilão), cada um com seu próprio horário e
  * seu próprio `setInterval`, sem estado compartilhado entre eles.
  * `label`/`nowLabel` deixam o texto configurável — "Começa em" pra eventos
- * futuros, "Encerra em" pra leilões em andamento, por exemplo.
+ * futuros, "Encerra em" pra leilões em andamento, por exemplo. `tone`
+ * troca a cor (roxo padrão vs. dourado, usado nos cards de leilão pra
+ * diferenciar visualmente de "Próximos Eventos").
  */
-export function CountdownBadge({ target, label, nowLabel }: { target: Date; label?: string; nowLabel?: string }) {
+export function CountdownBadge({
+  target,
+  label,
+  nowLabel,
+  tone = 'accent',
+}: {
+  target: Date;
+  label?: string;
+  nowLabel?: string;
+  tone?: 'accent' | 'gold';
+}) {
   const { t } = useTranslation();
   const targetMs = target.getTime();
   const [remaining, setRemaining] = useState(() => msRemaining(target));
@@ -25,6 +37,8 @@ export function CountdownBadge({ target, label, nowLabel }: { target: Date; labe
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetMs]);
+
+  const toneClass = tone === 'gold' ? ' countdown-badge-gold' : '';
 
   if (remaining <= 0) {
     return (
@@ -41,7 +55,7 @@ export function CountdownBadge({ target, label, nowLabel }: { target: Date; labe
   const seconds = totalSeconds % 60;
 
   return (
-    <div className="countdown-badge">
+    <div className={`countdown-badge${toneClass}`}>
       <span className="countdown-badge-label">{label ?? t('home.countdownLabel')}</span>
       <span className="countdown-badge-value">
         {days > 0 && `${days}${t('home.countdownDaysAbbr')} `}

@@ -79,7 +79,7 @@ export function HomePage() {
           <h2 style={{ marginTop: 28 }}>{t('home.ongoingAuctionsTitle')}</h2>
 
           {ongoingAuctions.map((auction) => (
-            <div key={auction.id} className="auction-item-card event-card">
+            <div key={auction.id} className="auction-item-card event-card event-card-auction">
               <div className="event-card-main">
                 <h3>{auction.title}</h3>
                 <p>{t('player.auctionItemCount', { count: auction.items.length })}</p>
@@ -91,6 +91,7 @@ export function HomePage() {
                 target={new Date(auction.expiresAt!)}
                 label={t('home.auctionEndsLabel') as string}
                 nowLabel={t('home.auctionEndingNow') as string}
+                tone="gold"
               />
             </div>
           ))}

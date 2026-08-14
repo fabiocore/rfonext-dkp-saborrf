@@ -19,6 +19,13 @@
   --warning: #fb923c;
   --warning-bg: rgba(251, 146, 60, 0.15);
 
+  /* Identidade visual dos leilões (home + destaques), separada do roxo
+     genérico de --accent — dourado remete a tesouro/item raro de leilão. */
+  --gold: #eab308;
+  --gold-hover: #ca8a04;
+  --gold-bg: rgba(234, 179, 8, 0.15);
+  --gold-border: rgba(234, 179, 8, 0.4);
+
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 16px;

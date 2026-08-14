@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Identidade visual dourada pros cards de leilão na home
+
+Apresentadas 3 opções de cor pra diferenciar "Leilões em Andamento" de "Próximos Eventos" (que usam o mesmo roxo hoje): laranja reaproveitando `--warning`, dourado novo, ou verde reaproveitando `--success`. Escolhido dourado. Token novo `--gold`/`--gold-hover`/`--gold-bg`/`--gold-border` em `index.css`; `CountdownBadge` ganhou prop `tone` ('accent' | 'gold'); cards de leilão na home ganharam borda esquerda + título dourados. Verificado visualmente lado a lado no dev local (leilão dourado em cima, evento roxo embaixo).
+
 ## 2026-08-14 — Leilões em andamento na home, com countdown próprio
 
 Nova seção "Leilões em Andamento" entre "Avisos" e "Próximos Eventos" — lista todo leilão `OPEN`, com título, contagem de itens, link "Ver" e um countdown ao vivo até o `expiresAt` (mesmo componente `CountdownBadge` do "Próximos Eventos", agora com `label`/`nowLabel` configuráveis pra dizer "Encerra em" em vez de "Começa em"). Some sozinha sem nenhum leilão aberto. Verificado no dev local com 2 leilões de teste (um encerrando em 30min, outro em 2 dias) confirmando countdowns independentes e o link levando pro painel público certo.
