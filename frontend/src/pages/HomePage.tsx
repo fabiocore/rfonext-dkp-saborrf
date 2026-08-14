@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { fetchGuildSettings, fetchPublicAnnouncements, fetchPublicEvents, type PublicEvent } from '../api/client';
+import { Link } from 'react-router-dom';
+import { fetchGuildSettings, fetchPublicAnnouncements, fetchPublicAuctions, fetchPublicEvents, type PublicEvent } from '../api/client';
 import { nextOccurrenceOf } from '../utils/scheduleTimezone';
 import { CountdownBadge } from '../components/CountdownBadge';
 
@@ -43,10 +44,12 @@ export function HomePage() {
   const { t, i18n } = useTranslation();
   const announcementsQuery = useQuery({ queryKey: ['public-announcements'], queryFn: fetchPublicAnnouncements });
   const eventsQuery = useQuery({ queryKey: ['public-events'], queryFn: fetchPublicEvents });
+  const auctionsQuery = useQuery({ queryKey: ['public-auctions'], queryFn: fetchPublicAuctions, refetchInterval: 15000 });
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
   const currencyAbbr = settingsQuery.data?.currencyAbbr ?? '';
 
   const upcoming = useMemo(() => getUpcomingOccurrences(eventsQuery.data ?? []), [eventsQuery.data]);
+  const ongoingAuctions = (auctionsQuery.data ?? []).filter((a) => a.status === 'OPEN' && a.expiresAt);
 
   return (
     <section>
@@ -70,6 +73,29 @@ export function HomePage() {
           </p>
         </div>
       ))}
+
+      {ongoingAuctions.length > 0 && (
+        <>
+          <h2 style={{ marginTop: 28 }}>{t('home.ongoingAuctionsTitle')}</h2>
+
+          {ongoingAuctions.map((auction) => (
+            <div key={auction.id} className="auction-item-card event-card">
+              <div className="event-card-main">
+                <h3>{auction.title}</h3>
+                <p>{t('player.auctionItemCount', { count: auction.items.length })}</p>
+                <p>
+                  <Link to={`/leiloes/${auction.id}`}>{t('auctions.view')}</Link>
+                </p>
+              </div>
+              <CountdownBadge
+                target={new Date(auction.expiresAt!)}
+                label={t('home.auctionEndsLabel') as string}
+                nowLabel={t('home.auctionEndingNow') as string}
+              />
+            </div>
+          ))}
+        </>
+      )}
 
       <h2 style={{ marginTop: 28 }}>{t('home.upcomingTitle')}</h2>
 

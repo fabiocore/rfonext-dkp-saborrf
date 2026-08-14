@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Leilões em andamento na home, com countdown próprio
+
+Nova seção "Leilões em Andamento" entre "Avisos" e "Próximos Eventos" — lista todo leilão `OPEN`, com título, contagem de itens, link "Ver" e um countdown ao vivo até o `expiresAt` (mesmo componente `CountdownBadge` do "Próximos Eventos", agora com `label`/`nowLabel` configuráveis pra dizer "Encerra em" em vez de "Começa em"). Some sozinha sem nenhum leilão aberto. Verificado no dev local com 2 leilões de teste (um encerrando em 30min, outro em 2 dias) confirmando countdowns independentes e o link levando pro painel público certo.
+
 ## 2026-08-14 — Fix: checkbox empilhado acima do nome nas telas de seleção de personagens
 
 `.checkbox-grid label` não definia `flex-direction` nem `font-weight` — dentro de um `.settings-form` (que define `flex-direction: column` e `font-weight: 600` nos labels), essas propriedades vazavam pro grid de checkboxes, empilhando o checkbox acima do nome do personagem em vez de ao lado (confuso pra selecionar rápido). Corrigido com `flex-direction: row` e `font-weight: normal` explícitos em `.checkbox-grid label` — um único ponto no CSS, corrige de uma vez em Emissão Manual, Atividades do Jogo, Eventos Personalizados e criação de Leilão (todas usam o mesmo componente).
