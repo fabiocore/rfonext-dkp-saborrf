@@ -151,7 +151,7 @@
 - Ranking geral de saldo de todos os Principais.
 - Painel de leilões (em andamento e histórico completo).
 - Feed de transferências entre membros e de emissões manuais do GM (sempre com print, quando anexado).
-- Painel de eventos/calendário (com imagem, quando cadastrada).
+- Painel de eventos/calendário (com imagem, quando cadastrada). **Countdown ao vivo** (adicionado em 2026-08-14): cada card de "Próximos Eventos" mostra, do lado direito, um contador regressivo próprio até o horário daquele evento específico (dias/horas/min/seg, atualiza a cada segundo, sem depender de recarregar a página) — cada card tem seu próprio timer independente, não é um único countdown compartilhado.
 - **Aviso Fixo** (adicionado em 2026-08-09): texto livre, sempre visível em destaque no topo da home, separado do Mural normal (que continua existindo por baixo) — pensado pra um lembrete operacional permanente (ex: prazo diário de check-in/doação/atividade). Só o GM edita (nem o Conselho); fica escondido quando o texto está vazio.
 
 ## 10. Estratégia multi-guild / white-label

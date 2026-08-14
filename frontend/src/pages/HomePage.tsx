@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { fetchGuildSettings, fetchPublicAnnouncements, fetchPublicEvents, type PublicEvent } from '../api/client';
 import { nextOccurrenceOf } from '../utils/scheduleTimezone';
+import { CountdownBadge } from '../components/CountdownBadge';
 
 interface UpcomingOccurrence {
   event: PublicEvent;
@@ -75,18 +76,21 @@ export function HomePage() {
       {upcoming.length === 0 && <p>{t('home.noUpcoming')}</p>}
 
       {upcoming.map(({ event, when }, index) => (
-        <div key={`${event.id}-${index}`} className="auction-item-card">
-          {event.imageUrl && (
-            <img src={event.imageUrl} alt={event.name} style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8 }} />
-          )}
-          <h3>{event.name}</h3>
-          <p>
-            {when.toLocaleDateString(i18n.language, { weekday: 'long', day: '2-digit', month: '2-digit' })} —{' '}
-            {when.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
-          </p>
-          <p>
-            <strong>{t('common.amount', { amount: event.brcValue, currencyAbbr })}</strong>
-          </p>
+        <div key={`${event.id}-${index}`} className="auction-item-card event-card">
+          <div className="event-card-main">
+            {event.imageUrl && (
+              <img src={event.imageUrl} alt={event.name} style={{ maxWidth: '100%', borderRadius: 8, marginBottom: 8 }} />
+            )}
+            <h3>{event.name}</h3>
+            <p>
+              {when.toLocaleDateString(i18n.language, { weekday: 'long', day: '2-digit', month: '2-digit' })} —{' '}
+              {when.toLocaleTimeString(i18n.language, { hour: '2-digit', minute: '2-digit' })}
+            </p>
+            <p>
+              <strong>{t('common.amount', { amount: event.brcValue, currencyAbbr })}</strong>
+            </p>
+          </div>
+          <CountdownBadge target={when} />
         </div>
       ))}
     </section>

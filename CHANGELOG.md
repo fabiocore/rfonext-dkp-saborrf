@@ -1,5 +1,13 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Countdown ao vivo nos cards de "Próximos Eventos"
+
+**Pedido**: countdown ao lado direito de cada card na home, um por evento (não um único countdown compartilhado).
+
+Novo componente `CountdownBadge.tsx` — atualiza a cada segundo (dias/horas/min/seg, formato monoespaçado), 1 instância por card, cada uma com seu próprio `setInterval` isolado, sem estado compartilhado entre elas. Card de evento (`HomePage.tsx`) virou um flex row: conteúdo original à esquerda, badge do countdown à direita; empilha verticalmente em telas estreitas (≤480px). Quando o horário chega, o badge muda pra "Começando agora!" em verde. i18n nos 3 idiomas.
+
+Verificado visualmente no dev local (desktop e mobile) com evento real já cadastrado ("Confronto pelo Paraíso"), incluindo o tick ao vivo dos segundos.
+
 ## 2026-08-14 — Igualar Lance (all-in) + desempate por 2d6 com reroll em empate
 
 **Pedido**: quem não tem saldo pra superar o lance líder (+1) mas tem exatamente o suficiente pra empatar ficava sem opção — o campo de lance manual bloqueia isso pelo atributo HTML `min`. Levantamento antes de implementar (a pedido do usuário) descobriu que o **backend já aceitava** lance = líder desde sempre (`placeBid` só exige "≥ líder", nunca exigiu "líder + 1" de verdade — isso é só a sugestão mostrada na tela); a trava era 100% de UI. Aproveitado pra também corrigir um gap real no desempate: o dado antigo (1d100) empatava silenciosamente na ordem da lista sem avisar nem rolar de novo.

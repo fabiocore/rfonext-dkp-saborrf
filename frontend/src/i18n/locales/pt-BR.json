@@ -17,7 +17,10 @@
     "announcementsTitle": "Avisos",
     "noAnnouncements": "Nenhum aviso no momento.",
     "upcomingTitle": "Próximos Eventos",
-    "noUpcoming": "Nenhum evento previsto pros próximos 7 dias."
+    "noUpcoming": "Nenhum evento previsto pros próximos 7 dias.",
+    "countdownLabel": "Começa em",
+    "countdownDaysAbbr": "d",
+    "countdownNow": "Começando agora!"
   },
   "balances": {
     "title": "Saldo de {{currencyName}}",

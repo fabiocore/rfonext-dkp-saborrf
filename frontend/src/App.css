@@ -644,6 +644,72 @@ button:disabled {
   gap: 8px;
 }
 
+.event-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.event-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-card-main p {
+  margin: 0 0 4px;
+}
+
+.countdown-badge {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  min-width: 128px;
+}
+
+.countdown-badge-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.countdown-badge-value {
+  font-family: var(--mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-h);
+  white-space: nowrap;
+}
+
+.countdown-badge-now {
+  background: var(--success-bg);
+  border-color: var(--success);
+}
+
+.countdown-badge-now .countdown-badge-value {
+  color: var(--success);
+}
+
+@media (max-width: 480px) {
+  .event-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .countdown-badge {
+    flex-direction: row;
+    justify-content: space-between;
+    min-width: 0;
+  }
+}
+
 .image-upload {
   display: flex;
   flex-direction: column;

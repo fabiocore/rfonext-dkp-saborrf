@@ -17,7 +17,10 @@
     "announcementsTitle": "Announcements",
     "noAnnouncements": "No announcements right now.",
     "upcomingTitle": "Upcoming Events",
-    "noUpcoming": "No events expected in the next 7 days."
+    "noUpcoming": "No events expected in the next 7 days.",
+    "countdownLabel": "Starts in",
+    "countdownDaysAbbr": "d",
+    "countdownNow": "Starting now!"
   },
   "balances": {
     "title": "{{currencyName}} Balances",
