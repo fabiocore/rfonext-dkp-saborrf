@@ -35,6 +35,8 @@ export function BalancesPage() {
               <th>{t('balances.character')}</th>
               <th>{t('balances.level')}</th>
               <th>{t('common.balance')}</th>
+              <th>{t('balances.reserved')}</th>
+              <th>{t('balances.available')}</th>
             </tr>
           </thead>
           <tbody>
@@ -57,6 +59,12 @@ export function BalancesPage() {
                 <td>{entry.level ?? '-'}</td>
                 <td>
                   {entry.balance} {settingsQuery.data?.currencyAbbr}
+                </td>
+                <td>
+                  {entry.hold > 0 ? `${entry.hold} ${settingsQuery.data?.currencyAbbr}` : '—'}
+                </td>
+                <td>
+                  {entry.available} {settingsQuery.data?.currencyAbbr}
                 </td>
               </tr>
             ))}

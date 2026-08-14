@@ -3,6 +3,7 @@ import { LedgerTransactionType, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { periodStartUtc, nextPeriodStartUtc } from '../common/period.util';
+import { computeHolds } from '../common/auction-hold.util';
 
 @Injectable()
 export class LedgerService {
@@ -203,8 +204,26 @@ export class LedgerService {
     });
     const balanceByCharacter = new Map(sums.map((s) => [s.characterId, s._sum.amount ?? 0]));
 
+    // Saldo reservado em leilões abertos — mesma regra de "quem lidera/empata
+    // no topo de um item tem o valor do lance retido" usada no motor de
+    // leilão, mas calculada aqui de forma independente e só de leitura (ver
+    // auction-hold.util.ts) — não depende de AuctionsService nem é usada por
+    // ele, pra nunca arriscar o funcionamento de leilões já em andamento.
+    const openItems = await this.prisma.auctionItem.findMany({
+      where: { auction: { status: 'OPEN', expiresAt: { gt: new Date() } }, resolutionStatus: 'PENDING' },
+      select: {
+        bids: { select: { characterId: true, amount: true } },
+        withdrawals: { select: { characterId: true } },
+      },
+    });
+    const holdByCharacter = computeHolds(openItems);
+
     return {
-      items: principals.map((c) => ({ ...c, balance: balanceByCharacter.get(c.id) ?? 0 })),
+      items: principals.map((c) => {
+        const balance = balanceByCharacter.get(c.id) ?? 0;
+        const hold = holdByCharacter.get(c.id) ?? 0;
+        return { ...c, balance, hold, available: balance - hold };
+      }),
       total,
       page,
       pageSize,

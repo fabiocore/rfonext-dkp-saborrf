@@ -64,6 +64,10 @@ export interface BalanceEntry {
   membershipStatus: MembershipStatus;
   avatarUrl: string | null;
   balance: number;
+  /** Preso em lances líderes/empatados de leilões abertos no momento. */
+  hold: number;
+  /** balance - hold. */
+  available: number;
 }
 
 export interface Character {
@@ -750,7 +754,7 @@ export interface PlayerAuctionItemView {
 }
 
 export interface PlayerAuctionView {
-  character: { id: string; gameName: string; level: number | null };
+  character: { id: string; gameName: string; level: number | null; profileAccessCode: string | null };
   auction: { id: string; title: string; status: AuctionStatus; expiresAt: string | null };
   isActive: boolean;
   walletBalance: number;

@@ -27,6 +27,8 @@
     "subtitle": "Saldo público de todos los personajes principales",
     "character": "Personaje",
     "level": "Nivel",
+    "reserved": "Reservado en Subasta",
+    "available": "Disponible",
     "empty": "Todavía no hay personajes principales."
   },
   "auctions": {
@@ -136,6 +138,9 @@
     "yourBid": "Tu oferta",
     "bidsCount": "{{count}} oferta(s)",
     "notEligible": "No cumples el requisito de este ítem.",
+    "notEligibleDetailed": "No cumples el requisito de este ítem — nivel mínimo: {{minLevel}}, tu nivel: {{level}}.",
+    "levelUnset": "no informado",
+    "updateMyLevel": "Actualizar mi nivel",
     "placeBid": "Ofertar",
     "matchBid": "Igualar oferta ({{amount}} {{currencyAbbr}})",
     "genericError": "No se pudo enviar la oferta.",

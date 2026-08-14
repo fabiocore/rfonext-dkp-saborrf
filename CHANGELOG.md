@@ -1,5 +1,17 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Nível mínimo visível no leilão + coluna de saldo reservado em Saldos
+
+**Pedido 1**: jogador que esqueceu de cadastrar o nível antes do leilão começar — ele consegue atualizar depois e o leilão libera sozinho? Validado antes de mexer em qualquer coisa (a pedido do usuário, com 2 leilões reais em andamento em produção): **sim, já funcionava** — elegibilidade é recalculada do zero em toda requisição (nunca fica "congelada" no nível de quando o leilão abriu), e nível é self-service com aplicação imediata. O único gap real era a mensagem de erro: só dizia "não atinge o requisito", sem dizer nível mínimo, nível atual, ou como corrigir.
+
+**Fix**: mensagem agora mostra o nível mínimo exigido e o nível atual do personagem, com link direto "Atualizar meu nível" pro `/perfil/:código` dele — o código de perfil passou a vir junto na resposta do leilão (mesmo personagem, campo que já existia no banco, só nunca era devolvido nessa rota). **Nenhuma regra de elegibilidade foi tocada** — só a exibição da mensagem.
+
+**Pedido 2**: coluna "Saldo" em `/saldo` mostrava o total, escondendo que parte já estava presa num lance líder de leilão aberto. Novas colunas **"Reservado em Leilão"** e **"Disponível"**.
+
+**Cautela explícita do usuário** (2 leilões reais em andamento): a regra de "quanto está reservado" foi **duplicada** numa função nova e separada (`auction-hold.util.ts`, pura, testada), em vez de reaproveitar `AuctionsService.computeHoldTx` — o motor de leilão (`placeBid`, `matchLeadingBid`, `resolvePendingItem`) não foi tocado em nenhuma linha. Testado com um lance real de teste num personagem real do dev local, confirmando saldo/reservado/disponível corretos, e limpo depois.
+
+**Testes**: 8 testes unitários novos de `auction-hold.util.ts` (líder sozinho, quem não lidera não retém nada, empate retém todo mundo, só conta o melhor lance de cada um, desistência libera, soma entre vários itens, item sem lance não gera hold, lista vazia). Suite completa: 38/38 passando.
+
 ## 2026-08-14 — Countdown ao vivo nos cards de "Próximos Eventos"
 
 **Pedido**: countdown ao lado direito de cada card na home, um por evento (não um único countdown compartilhado).

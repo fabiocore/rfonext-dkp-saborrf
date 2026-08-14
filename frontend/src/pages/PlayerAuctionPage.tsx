@@ -19,11 +19,15 @@ function ItemCard({
   item,
   disabled,
   currencyAbbr,
+  characterLevel,
+  profileAccessCode,
 }: {
   code: string;
   item: PlayerAuctionItemView;
   disabled: boolean;
   currencyAbbr: string;
+  characterLevel: number | null;
+  profileAccessCode: string | null;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -93,7 +97,22 @@ function ItemCard({
         {item.ownAmount || '—'} · {t('player.bidsCount', { count: item.bidCount })}
       </p>
 
-      {!item.eligible && <p className="form-error">{t('player.notEligible')}</p>}
+      {!item.eligible && item.protection && (
+        <p className="form-error">
+          {t('player.notEligibleDetailed', {
+            minLevel: item.protection.minLevel,
+            level: characterLevel ?? t('player.levelUnset'),
+          })}
+          {profileAccessCode && (
+            <>
+              {' '}
+              <a href={`/perfil/${profileAccessCode}`} target="_blank" rel="noreferrer">
+                {t('player.updateMyLevel')}
+              </a>
+            </>
+          )}
+        </p>
+      )}
 
       {item.eligible && !disabled && !resolved && !item.withdrawn && (
         <form
@@ -264,7 +283,15 @@ export function PlayerAuctionDetailPage() {
         )}
 
         {view.items.map((item) => (
-          <ItemCard key={item.id} code={code!} item={item} disabled={!view.isActive} currencyAbbr={currencyAbbr} />
+          <ItemCard
+            key={item.id}
+            code={code!}
+            item={item}
+            disabled={!view.isActive}
+            currencyAbbr={currencyAbbr}
+            characterLevel={view.character.level}
+            profileAccessCode={view.character.profileAccessCode}
+          />
         ))}
       </main>
     </div>

@@ -27,6 +27,8 @@
     "subtitle": "Saldo público de todos os membros principais",
     "character": "Personagem",
     "level": "Nível",
+    "reserved": "Reservado em Leilão",
+    "available": "Disponível",
     "empty": "Nenhum personagem principal encontrado ainda."
   },
   "auctions": {
@@ -136,6 +138,9 @@
     "yourBid": "Seu lance",
     "bidsCount": "{{count}} lance(s)",
     "notEligible": "Você não atinge o requisito deste item.",
+    "notEligibleDetailed": "Você não atinge o requisito deste item — nível mínimo: {{minLevel}}, seu nível: {{level}}.",
+    "levelUnset": "não informado",
+    "updateMyLevel": "Atualizar meu nível",
     "placeBid": "Dar lance",
     "matchBid": "Igualar lance ({{amount}} {{currencyAbbr}})",
     "genericError": "Falha ao dar lance.",

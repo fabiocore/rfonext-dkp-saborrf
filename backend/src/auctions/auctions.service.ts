@@ -423,7 +423,17 @@ export class AuctionsService {
     const isActive = participant.auction.status === 'OPEN' && participant.auction.expiresAt! > new Date();
 
     return {
-      character: { id: participant.character.id, gameName: participant.character.gameName, level: participant.character.level },
+      character: {
+        id: participant.character.id,
+        gameName: participant.character.gameName,
+        level: participant.character.level,
+        // Código de /perfil (diferente do código de leilão que ele já está
+        // usando pra ver essa tela) — só pra montar o link "Atualizar meu
+        // nível" quando ele não bate o requisito de algum item. Mesma
+        // pessoa, mesmo personagem: não é vazamento de credencial de
+        // terceiro, é o próprio código dele sendo devolvido a ele.
+        profileAccessCode: participant.character.profileAccessCode,
+      },
       auction: {
         id: participant.auction.id,
         title: participant.auction.title,

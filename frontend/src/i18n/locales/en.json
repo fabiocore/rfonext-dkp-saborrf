@@ -27,6 +27,8 @@
     "subtitle": "Public balance of all main characters",
     "character": "Character",
     "level": "Level",
+    "reserved": "Reserved in Auction",
+    "available": "Available",
     "empty": "No main characters found yet."
   },
   "auctions": {
@@ -136,6 +138,9 @@
     "yourBid": "Your bid",
     "bidsCount": "{{count}} bid(s)",
     "notEligible": "You don't meet the requirement for this item.",
+    "notEligibleDetailed": "You don't meet the requirement for this item — minimum level: {{minLevel}}, your level: {{level}}.",
+    "levelUnset": "not set",
+    "updateMyLevel": "Update my level",
     "placeBid": "Place bid",
     "matchBid": "Match bid ({{amount}} {{currencyAbbr}})",
     "genericError": "Failed to place bid.",
