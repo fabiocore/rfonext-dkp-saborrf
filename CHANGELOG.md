@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Personagens: remove código de leilão da linha expansível
+
+A linha de detalhe recém-criada (ver entrada anterior) mostrava os dois códigos — perfil e leilão. A pedido do usuário, o código de leilão saiu de cena por completo desse card: nem visualizar, nem gerar novo, só o código de perfil continua ali. `AuctionCodeCell` (componente que só existia nesse arquivo) removido. Nada muda pro jogador — ele continua vendo e regenerando o próprio código de leilão em `/perfil`, e o backend/endpoint de regeneração continuam existindo (só não têm mais botão nessa tela específica).
+
 ## 2026-08-14 — Tela de Personagens: tabela enxuta + linha expansível
 
 A tabela de Personagens tinha 12 colunas e exigia scroll lateral o tempo todo. Apresentei 3 opções visuais num mockup (cards empilhados, tabela enxuta + linha expansível, grid de cards) — escolhida a segunda.
