@@ -1,5 +1,11 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Tela de Personagens: tabela enxuta + linha expansível
+
+A tabela de Personagens tinha 12 colunas e exigia scroll lateral o tempo todo. Apresentei 3 opções visuais num mockup (cards empilhados, tabela enxuta + linha expansível, grid de cards) — escolhida a segunda.
+
+Tabela principal reduzida a 6 colunas (Personagem, Status, Nível, Interação, Saldo, Salvar) — cabe sem rolar de lado. Campos usados com menos frequência (Principal vinculado, Última vez visto, Discord ID, Código de perfil, Código de leilão) ficam atrás de um botão "▸" que expande a linha no lugar, sem modal. Alt sem Principal vinculado ganha um badge "sem vínculo" já na linha resumida, pra não precisar expandir todo mundo procurando cadastro incompleto. Puramente visual — nenhuma lógica de edição/salvamento mudou, mesmo componente e mutation de sempre.
+
 ## 2026-08-14 — Proteção desativada não pode mais ser anexada a item de leilão (trava no backend)
 
 O dropdown de "Adicionar item" no rascunho de leilão já filtrava proteção desativada (`.filter(p => p.isActive)`), mas isso sozinho era uma garantia frágil — só de UI. Confirmado com uma chamada direta à API (`fetch` manual, bypassando o formulário) que `addItem`/`updateItem` aceitavam qualquer `protectionId`, mesmo de proteção desativada, sem nenhuma checagem no servidor.

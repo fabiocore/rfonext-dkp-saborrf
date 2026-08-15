@@ -228,6 +228,31 @@
   opacity: 0.5;
 }
 
+/* Linha de detalhe expansível (ex: Personagens) — campos secundários,
+   escondidos até clicar no toggle, pra tabela principal não precisar de
+   scroll lateral. */
+.data-table tr.detail-row td {
+  background: var(--bg-elevated-2);
+  border-top: none;
+  padding: 14px 16px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px 24px;
+}
+
+.detail-grid .field-label {
+  font-size: 0.72rem;
+  font-family: var(--heading);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
 @media (max-width: 480px) {
   .app-shell {
     padding: 12px;

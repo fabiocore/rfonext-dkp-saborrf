@@ -110,6 +110,7 @@ function CharacterRow({
   currencyAbbr: string;
 }) {
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState(character.status);
   const [level, setLevel] = useState(character.level ?? '');
   const [linkedPrincipalId, setLinkedPrincipalId] = useState(character.linkedPrincipalId ?? '');
@@ -139,88 +140,132 @@ function CharacterRow({
     discordId.trim() !== (character.discordId ?? '');
 
   const receivesBrc = status === 'PRINCIPAL' && membershipStatus === 'ACTIVE';
+  const missingLink = status === 'ALT' && !linkedPrincipalId;
 
   return (
-    <tr>
-      <td>{character.gameName}</td>
-      <td>
-        <select value={status} onChange={(e) => setStatus(e.target.value as Character['status'])}>
-          <option value="PRINCIPAL">Principal</option>
-          <option value="ALT">Alt</option>
-          <option value="ALT_ONLY">AltOnly</option>
-        </select>
-      </td>
-      <td>
-        {status === 'PRINCIPAL' ? (
-          <input
-            type="number"
-            min={1}
-            value={level}
-            onChange={(e) => setLevel(e.target.value === '' ? '' : Number(e.target.value))}
-            style={{ width: 70 }}
-          />
-        ) : (
-          '-'
-        )}
-      </td>
-      <td>
-        {status === 'ALT' ? (
-          <select value={linkedPrincipalId} onChange={(e) => setLinkedPrincipalId(e.target.value)}>
-            <option value="">Selecione o Principal</option>
-            {allPrincipals
-              .filter((p) => p.id !== character.id)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.gameName}
-                </option>
-              ))}
+    <>
+      <tr>
+        <td>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? 'Recolher detalhes' : 'Expandir detalhes'}
+            title={expanded ? 'Recolher detalhes' : 'Expandir detalhes'}
+          >
+            {expanded ? '▾' : '▸'}
+          </button>
+        </td>
+        <td>
+          {character.gameName}
+          {missingLink && (
+            <span className="badge badge-no" style={{ marginLeft: 6 }}>
+              sem vínculo
+            </span>
+          )}
+        </td>
+        <td>
+          <select value={status} onChange={(e) => setStatus(e.target.value as Character['status'])}>
+            <option value="PRINCIPAL">Principal</option>
+            <option value="ALT">Alt</option>
+            <option value="ALT_ONLY">AltOnly</option>
           </select>
-        ) : (
-          '-'
-        )}
-      </td>
-      <td>{new Date(character.lastSeenAt).toLocaleDateString('pt-BR')}</td>
-      <td>
-        <select value={membershipStatus} onChange={(e) => setMembershipStatus(e.target.value as MembershipStatus)}>
-          <option value="ACTIVE">Ativo na Guild</option>
-          <option value="UNKNOWN">Desconhecido</option>
-          <option value="LEFT">Saiu</option>
-        </select>
-      </td>
-      <td>
-        <span className={receivesBrc ? 'badge badge-yes' : 'badge badge-no'}>
-          {receivesBrc ? `Recebe ${currencyAbbr}` : `Não recebe ${currencyAbbr}`}
-        </span>
-      </td>
-      <td>{character.balance}</td>
-      <td>
-        <input
-          value={discordId}
-          onChange={(e) => setDiscordId(e.target.value)}
-          placeholder="Usuário ou ID"
-          style={{ width: 130 }}
-        />
-      </td>
-      <td>
-        {character.profileAccessCode ? (
-          <ProfileCodeCell characterId={character.id} code={character.profileAccessCode} gameName={character.gameName} />
-        ) : (
-          '—'
-        )}
-      </td>
-      <td>
-        {character.auctionAccessCode ? (
-          <AuctionCodeCell characterId={character.id} code={character.auctionAccessCode} gameName={character.gameName} />
-        ) : (
-          '—'
-        )}
-      </td>
-      <td>
-        <button type="button" disabled={!dirty || mutation.isPending} onClick={() => mutation.mutate()}>
-          Salvar
-        </button>
-      </td>
-    </tr>
+        </td>
+        <td>
+          {status === 'PRINCIPAL' ? (
+            <input
+              type="number"
+              min={1}
+              value={level}
+              onChange={(e) => setLevel(e.target.value === '' ? '' : Number(e.target.value))}
+              style={{ width: 70 }}
+            />
+          ) : (
+            '-'
+          )}
+        </td>
+        <td>
+          <select value={membershipStatus} onChange={(e) => setMembershipStatus(e.target.value as MembershipStatus)}>
+            <option value="ACTIVE">Ativo na Guild</option>
+            <option value="UNKNOWN">Desconhecido</option>
+            <option value="LEFT">Saiu</option>
+          </select>
+        </td>
+        <td>{character.balance}</td>
+        <td>
+          <button type="button" disabled={!dirty || mutation.isPending} onClick={() => mutation.mutate()}>
+            Salvar
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr className="detail-row">
+          <td></td>
+          <td colSpan={6}>
+            <div className="detail-grid">
+              <div>
+                <div className="field-label">Recebe {currencyAbbr}</div>
+                <span className={receivesBrc ? 'badge badge-yes' : 'badge badge-no'}>
+                  {receivesBrc ? `Recebe ${currencyAbbr}` : `Não recebe ${currencyAbbr}`}
+                </span>
+              </div>
+              {status === 'ALT' && (
+                <div>
+                  <div className="field-label">Principal vinculado</div>
+                  <select value={linkedPrincipalId} onChange={(e) => setLinkedPrincipalId(e.target.value)}>
+                    <option value="">Selecione o Principal</option>
+                    {allPrincipals
+                      .filter((p) => p.id !== character.id)
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.gameName}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <div className="field-label">Última vez visto</div>
+                {new Date(character.lastSeenAt).toLocaleDateString('pt-BR')}
+              </div>
+              <div>
+                <div className="field-label">Discord ID</div>
+                <input
+                  value={discordId}
+                  onChange={(e) => setDiscordId(e.target.value)}
+                  placeholder="Usuário ou ID"
+                  style={{ width: 130 }}
+                />
+              </div>
+              <div>
+                <div className="field-label">Código de perfil</div>
+                {character.profileAccessCode ? (
+                  <ProfileCodeCell
+                    characterId={character.id}
+                    code={character.profileAccessCode}
+                    gameName={character.gameName}
+                  />
+                ) : (
+                  '—'
+                )}
+              </div>
+              <div>
+                <div className="field-label">Código de leilão</div>
+                {character.auctionAccessCode ? (
+                  <AuctionCodeCell
+                    characterId={character.id}
+                    code={character.auctionAccessCode}
+                    gameName={character.gameName}
+                  />
+                ) : (
+                  '—'
+                )}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -251,24 +296,20 @@ export function CharactersPage() {
         (aplica na hora, sem aprovação). O "Código de leilão" (formato curto, fixo por personagem desde 2026-08-14)
         dá acesso a qualquer leilão em que ele for marcado como participante — não muda a cada leilão novo, o
         próprio membro também consegue ver ele na tela de perfil. Se algum nível parecer errado, ajuste direto aqui
-        na coluna "Nível".
+        na coluna "Nível". Clique na seta pra abrir vínculo de Alt, última vez visto, Discord e os códigos de cada
+        personagem.
       </p>
 
       <TableScroll>
       <table className="data-table">
         <thead>
           <tr>
+            <th></th>
             <th>Personagem</th>
             <th>Status</th>
             <th>Nível</th>
-            <th>Principal vinculado</th>
-            <th>Última vez visto</th>
             <th>Interação</th>
-            <th>{currencyAbbr}</th>
             <th>Saldo</th>
-            <th>Discord ID</th>
-            <th>Código de perfil</th>
-            <th>Código de leilão</th>
             <th></th>
           </tr>
         </thead>
