@@ -8,9 +8,9 @@
   "nav": {
     "home": "Home",
     "auctions": "Auctions",
-    "balances": "Balances",
+    "balances": "Players",
     "feed": "Ledger",
-    "profile": "Profile"
+    "profile": "My Profile"
   },
   "home": {
     "pinnedTitle": "Important Notice",

@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Renomeia e reordena o menu público
+
+Menu público (topo de toda página pública) reordenado: ícone da casinha, Jogadores, Leilões, Livro-Razão, Meu Perfil (antes: Início, Leilões, Saldos, Extrato, Perfil). Renomeado nos 3 idiomas — pt-BR: Saldos→Jogadores, Extrato→Livro-Razão, Perfil→Meu Perfil; en: Balances→Players, Profile→My Profile (Ledger já estava certo); es: Saldos→Jugadores, Extracto→Libro Mayor, Perfil→Mi Perfil. Só o menu (`PublicLayout.tsx` + chaves `nav.*`) — rotas, títulos de página e o resto do texto de cada tela não mudaram.
+
 ## 2026-08-14 — Fix: campos da linha expansível de Personagens quase alinhavam com a tabela
 
 `.detail-grid` usava colunas de largura fixa (`grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))`), que por coincidência de largura ficavam *quase* embaixo das colunas da tabela acima (Status, Nível etc.) sem alinhar de verdade — como as larguras reais da tabela variam por conteúdo, o resultado parecia bugado em vez de intencional. Trocado pra `display: flex` com `flex-wrap: wrap` — cada campo ocupa só o espaço do próprio conteúdo, sem fingir alinhamento com nada de cima. Lê como um bloco compacto separado, não como uma continuação torta das colunas.

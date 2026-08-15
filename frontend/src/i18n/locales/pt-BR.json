@@ -8,9 +8,9 @@
   "nav": {
     "home": "Início",
     "auctions": "Leilões",
-    "balances": "Saldos",
-    "feed": "Extrato",
-    "profile": "Perfil"
+    "balances": "Jogadores",
+    "feed": "Livro-Razão",
+    "profile": "Meu Perfil"
   },
   "home": {
     "pinnedTitle": "Aviso Importante",

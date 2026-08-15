@@ -20,8 +20,8 @@ export function PublicLayout() {
             <NavLink to="/" end aria-label={t('nav.home') as string} title={t('nav.home') as string}>
               <HomeIcon />
             </NavLink>
-            <NavLink to="/leiloes">{t('nav.auctions')}</NavLink>
             <NavLink to="/saldo">{t('nav.balances')}</NavLink>
+            <NavLink to="/leiloes">{t('nav.auctions')}</NavLink>
             <NavLink to="/extrato">{t('nav.feed')}</NavLink>
             <NavLink to="/perfil">{t('nav.profile')}</NavLink>
           </nav>
