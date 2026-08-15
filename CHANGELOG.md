@@ -1,5 +1,9 @@
 # Changelog — RFONext DKP
 
+## 2026-08-14 — Fix: campos da linha expansível de Personagens quase alinhavam com a tabela
+
+`.detail-grid` usava colunas de largura fixa (`grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))`), que por coincidência de largura ficavam *quase* embaixo das colunas da tabela acima (Status, Nível etc.) sem alinhar de verdade — como as larguras reais da tabela variam por conteúdo, o resultado parecia bugado em vez de intencional. Trocado pra `display: flex` com `flex-wrap: wrap` — cada campo ocupa só o espaço do próprio conteúdo, sem fingir alinhamento com nada de cima. Lê como um bloco compacto separado, não como uma continuação torta das colunas.
+
 ## 2026-08-14 — Personagens: remove código de leilão da linha expansível
 
 A linha de detalhe recém-criada (ver entrada anterior) mostrava os dois códigos — perfil e leilão. A pedido do usuário, o código de leilão saiu de cena por completo desse card: nem visualizar, nem gerar novo, só o código de perfil continua ali. `AuctionCodeCell` (componente que só existia nesse arquivo) removido. Nada muda pro jogador — ele continua vendo e regenerando o próprio código de leilão em `/perfil`, e o backend/endpoint de regeneração continuam existindo (só não têm mais botão nessa tela específica).

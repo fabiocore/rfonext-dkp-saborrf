@@ -237,10 +237,19 @@
   padding: 14px 16px;
 }
 
+/* flex (não grid) de propósito: colunas de largura fixa só quase batiam com
+   a largura real (variável, por conteúdo) das colunas da tabela acima,
+   ficando com um desalinhamento sutil e estranho. Cada campo aqui ocupa só
+   o espaço do próprio conteúdo — não finge alinhar com nada de cima. */
 .detail-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 36px;
+}
+
+.detail-grid > div {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .detail-grid .field-label {
