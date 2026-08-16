@@ -3,11 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { HomeIcon } from '../components/HomeIcon';
-import { fetchGuildSettings } from '../api/client';
+import { fetchCurrentVotingTopic, fetchGuildSettings } from '../api/client';
 
 export function PublicLayout() {
   const { t } = useTranslation();
   const settingsQuery = useQuery({ queryKey: ['guild-settings'], queryFn: fetchGuildSettings });
+  // Só existe no máximo 1 tópico aberto por vez — o link "Votação" some
+  // sozinho quando não há nenhum.
+  const votingQuery = useQuery({
+    queryKey: ['current-voting-topic'],
+    queryFn: fetchCurrentVotingTopic,
+    refetchInterval: 15000,
+  });
 
   return (
     <div className="app-shell">
@@ -24,6 +31,7 @@ export function PublicLayout() {
             <NavLink to="/leiloes">{t('nav.auctions')}</NavLink>
             <NavLink to="/extrato">{t('nav.feed')}</NavLink>
             <NavLink to="/perfil">{t('nav.profile')}</NavLink>
+            {votingQuery.data && <NavLink to={`/votacao/${votingQuery.data.id}`}>{t('nav.voting')}</NavLink>}
           </nav>
           <LanguageSwitcher />
         </div>

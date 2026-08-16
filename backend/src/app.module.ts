@@ -18,6 +18,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { BackupModule } from './backup/backup.module';
 import { ProfileModule } from './profile/profile.module';
+import { VotingModule } from './voting/voting.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -40,6 +41,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AnnouncementsModule,
     BackupModule,
     ProfileModule,
+    VotingModule,
     PublicModule,
   ],
   providers: [

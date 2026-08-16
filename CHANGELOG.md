@@ -1,5 +1,13 @@
 # Changelog — RFONext DKP
 
+## 2026-08-16 — Sistema de votação para tópicos
+
+Nova feature independente do leilão, sem alterar nenhuma mecânica existente (ver `PREMISSAS.md` seção 14 pra regras completas). GM ou Vice-GM cria e publica tópicos de votação (título, descrição, opções, seleção única ou múltipla) — Conselho não tem acesso a essa área. Só 1 tópico aberto por vez, travado por lock consultivo no publish (mesmo padrão de `AuctionsService`).
+
+Jogador vota com o próprio código de perfil (o mesmo do `/perfil`), sem login, e pode trocar de voto livremente enquanto o tópico está aberto. Só Principal com `membershipStatus: ACTIVE` pode votar. Resultado fica escondido até o jogador votar (depois disso vê tudo: quem votou, nível atual ao vivo, opção escolhida, mensagem opcional). GM/Vice-GM pode ocultar mensagem inadequada — some do público, mas continua visível só pra GM/Vice-GM. Encerramento manual (com motivo obrigatório) ou automático num horário agendado; depois de encerrado o resultado vira público pra todo mundo, sem código. Link "VOTAÇÃO" no menu público (após "Meu Perfil") só aparece com tópico aberto.
+
+Backend: 4 modelos novos (`VotingTopic`/`VotingOption`/`Vote`/`VoteSelection`, migration puramente aditiva), `VotingService` com 15 testes de integração novos (59/59 no total, suite inteira verde), controller de staff + controller público, cron de expiração automática. Frontend: página pública de votação (cédula + resultado), páginas de admin (lista + detalhe/moderação), link condicional no menu, i18n completo (pt-BR/en/es) nas telas públicas — admin fica só em português, mesmo padrão do resto do painel. Validado manualmente ponta a ponta no dev local: criação, publicação, voto, troca de voto (com pré-preenchimento correto da cédula), bloqueio de resultado pra quem não votou, ocultar/reexibir mensagem, encerramento manual e desaparecimento do link no menu.
+
 ## 2026-08-14 — Renomeia e reordena o menu público
 
 Menu público (topo de toda página pública) reordenado: ícone da casinha, Jogadores, Leilões, Livro-Razão, Meu Perfil (antes: Início, Leilões, Saldos, Extrato, Perfil). Renomeado nos 3 idiomas — pt-BR: Saldos→Jogadores, Extrato→Livro-Razão, Perfil→Meu Perfil; en: Balances→Players, Profile→My Profile (Ledger já estava certo); es: Saldos→Jugadores, Extracto→Libro Mayor, Perfil→Mi Perfil. Só o menu (`PublicLayout.tsx` + chaves `nav.*`) — rotas, títulos de página e o resto do texto de cada tela não mudaram.

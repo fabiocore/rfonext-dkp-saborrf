@@ -8,6 +8,7 @@ import { TransparencyFeedPage } from './pages/TransparencyFeedPage';
 import { PlayerAuctionHubPage, PlayerAuctionDetailPage } from './pages/PlayerAuctionPage';
 import { ProfileCodeEntryPage } from './pages/ProfileCodeEntryPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { VotingPage } from './pages/VotingPage';
 import { LoginPage } from './pages/admin/LoginPage';
 import { RecoverPasswordPage } from './pages/admin/RecoverPasswordPage';
 import { AdminLayout } from './pages/admin/AdminLayout';
@@ -25,6 +26,8 @@ import { TransferPage } from './pages/admin/TransferPage';
 import { ManualAdjustmentPage } from './pages/admin/ManualAdjustmentPage';
 import { AnnouncementsPage } from './pages/admin/AnnouncementsPage';
 import { BackupPage } from './pages/admin/BackupPage';
+import { VotingListPage } from './pages/admin/VotingListPage';
+import { VotingDetailPage } from './pages/admin/VotingDetailPage';
 import { ProtectedRoute } from './auth/ProtectedRoute';
 import './App.css';
 
@@ -40,6 +43,7 @@ function App() {
         <Route path="codigo" element={<Navigate to="/leiloes" replace />} />
         <Route path="extrato" element={<TransparencyFeedPage />} />
         <Route path="perfil" element={<ProfileCodeEntryPage />} />
+        <Route path="votacao/:id" element={<VotingPage />} />
       </Route>
 
       <Route path="/oferta/:code" element={<PlayerAuctionHubPage />} />
@@ -60,6 +64,8 @@ function App() {
           <Route path="auctions/:id" element={<AuctionBuilderPage />} />
           <Route path="announcements" element={<AnnouncementsPage />} />
           <Route path="custom-events" element={<CustomEventsPage />} />
+          <Route path="voting" element={<VotingListPage />} />
+          <Route path="voting/:id" element={<VotingDetailPage />} />
           <Route path="ledger/transfer" element={<TransferPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="change-password" element={<ChangePasswordPage />} />

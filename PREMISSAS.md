@@ -202,5 +202,19 @@
 - **Emissão**: criação de moeda do zero e crédito a um membro (atividade, evento, emissão manual positiva).
 - **Queima**: remoção de moeda que deixa de existir (imposto semanal, vitória em leilão, emissão manual negativa) — diferente de transferência, que é neutra entre dois membros.
 
+## 14. Votação (tópicos)
+
+Sistema de votação/enquete, independente do leilão — adicionado em 2026-08-16, sem alterar nenhuma mecânica existente.
+
+- **Só GM ou Vice-GM** criam e publicam tópicos de votação (Conselho não tem acesso a essa área) — publica direto, sem dupla aprovação (diferente do leilão de Conselho).
+- **Só 1 tópico aberto por vez** — trava com lock consultivo no `publish` (`pg_advisory_xact_lock`), mesmo padrão usado em `AuctionsService`.
+- Criação: título, descrição, opções e tipo de seleção **única ou múltipla** (vale pro tópico inteiro, não por opção).
+- Jogador vota com o **código de perfil** (o mesmo do `/perfil`, não o código de leilão) — sem login. Pode **trocar o voto** quantas vezes quiser enquanto o tópico estiver aberto (o voto anterior é substituído, não acumulado).
+- Só personagem **Principal com `membershipStatus: ACTIVE`** pode votar.
+- **Resultado fica escondido até o jogador votar** — depois de votar (ou quando o tópico fecha), o jogador vê o resultado completo: por votante, nome do personagem, **nível atual (ao vivo, não uma foto de quando votou — mesma regra do requisito mínimo de nível no leilão)**, opção(ões) escolhida(s) e a mensagem opcional.
+- Mensagem opcional (até 280 caracteres) fica visível a todo mundo por padrão. GM/Vice-GM pode **ocultar** uma mensagem inadequada — some do resultado público (mesmo pra quem já votou), mas continua visível só pra GM/Vice-GM na tela de administração do tópico. Pode reexibir a qualquer momento.
+- Encerramento: manual (GM/Vice-GM, motivo obrigatório) ou automático num horário agendado opcional na criação (`scheduledEndAt`, resolvido por cron a cada minuto, mesmo padrão do `auction-expiry.cron.ts`). Depois de encerrado, o resultado fica **público pra todo mundo, sem precisar de código**.
+- Link "VOTAÇÃO" no menu público (logo após "MEU PERFIL") só aparece quando existe um tópico aberto — desaparece sozinho ao encerrar.
+
 ---
 *Última atualização: 2026-08-09. Alterar este arquivo sempre que uma premissa mudar.*

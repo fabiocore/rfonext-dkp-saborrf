@@ -10,7 +10,8 @@
     "auctions": "Leilões",
     "balances": "Jogadores",
     "feed": "Livro-Razão",
-    "profile": "Meu Perfil"
+    "profile": "Meu Perfil",
+    "voting": "Votação"
   },
   "home": {
     "pinnedTitle": "Aviso Importante",
@@ -154,5 +155,26 @@
     "itemCancelled": "Este item foi encerrado pelo GM antes da hora — motivo: {{reason}}",
     "youWon": "Você venceu este item!",
     "itemWonByOther": "Este item já foi vencido por outro jogador."
+  },
+  "voting": {
+    "notFound": "Votação não encontrada.",
+    "closedLabel": "Votação encerrada",
+    "enterCodeTitle": "Digite seu código de perfil pra votar",
+    "enterCodeSubtitle": "O mesmo código que você usa pra acessar seu /perfil.",
+    "codePlaceholder": "Seu código de perfil",
+    "enterCodeSubmit": "Continuar",
+    "invalidCode": "Código inválido.",
+    "resultsTitle": "Resultado",
+    "whoVotedTitle": "Quem votou",
+    "noVotesYet": "Ninguém votou ainda.",
+    "changeVote": "Trocar meu voto",
+    "cancelChange": "Cancelar",
+    "chooseOne": "Escolha 1 opção",
+    "chooseMany": "Escolha 1 ou mais opções",
+    "messageLabel": "Mensagem (opcional, fica visível pra todo mundo)",
+    "messagePlaceholder": "Quer justificar seu voto? (opcional)",
+    "messageHint": "Até 280 caracteres. O GM pode ocultar mensagens inadequadas.",
+    "submitVote": "Confirmar voto",
+    "genericError": "Falha ao registrar o voto."
   }
 }

@@ -799,3 +799,148 @@ export async function withdrawPlayerBid(code: string, itemId: string) {
   const { data } = await apiClient.post(`/player-auctions/${code}/items/${itemId}/withdraw`);
   return data;
 }
+
+// ---------------------------------------------------------------------
+// Votação
+// ---------------------------------------------------------------------
+
+export type VotingSelectionType = 'SINGLE' | 'MULTIPLE';
+export type VotingTopicStatus = 'DRAFT' | 'OPEN' | 'CLOSED';
+
+export interface VotingOption {
+  id: string;
+  label: string;
+  order: number;
+}
+
+export interface VotingTopicStaff {
+  id: string;
+  title: string;
+  description: string;
+  selectionType: VotingSelectionType;
+  status: VotingTopicStatus;
+  scheduledEndAt: string | null;
+  publishedAt: string | null;
+  closedAt: string | null;
+  closeReason: string | null;
+  createdAt: string;
+  options: VotingOption[];
+  _count?: { votes: number };
+}
+
+export interface VotingVoteStaff {
+  characterId: string;
+  gameName: string;
+  level: number | null;
+  optionLabels: string[];
+  message: string | null;
+  messageHidden: boolean;
+}
+
+export interface VotingTopicStaffDetail extends VotingTopicStaff {
+  votes: VotingVoteStaff[];
+}
+
+export async function fetchVotingTopicsForStaff(): Promise<VotingTopicStaff[]> {
+  const { data } = await apiClient.get<VotingTopicStaff[]>('/voting-topics');
+  return data;
+}
+
+export async function fetchVotingTopicForStaff(id: string): Promise<VotingTopicStaffDetail> {
+  const { data } = await apiClient.get<VotingTopicStaffDetail>(`/voting-topics/${id}`);
+  return data;
+}
+
+export async function createVotingTopic(data: {
+  title: string;
+  description: string;
+  selectionType: VotingSelectionType;
+  options: string[];
+  scheduledEndAt?: string | null;
+}): Promise<VotingTopicStaff> {
+  const { data: result } = await apiClient.post<VotingTopicStaff>('/voting-topics', data);
+  return result;
+}
+
+export async function deleteVotingTopicDraft(id: string) {
+  await apiClient.delete(`/voting-topics/${id}`);
+}
+
+export async function publishVotingTopic(id: string) {
+  const { data } = await apiClient.post(`/voting-topics/${id}/publish`);
+  return data;
+}
+
+export async function closeVotingTopic(id: string, reason: string) {
+  const { data } = await apiClient.post(`/voting-topics/${id}/close`, { reason });
+  return data;
+}
+
+export async function hideVotingMessage(topicId: string, characterId: string) {
+  await apiClient.post(`/voting-topics/${topicId}/votes/${characterId}/hide-message`);
+}
+
+export async function unhideVotingMessage(topicId: string, characterId: string) {
+  await apiClient.post(`/voting-topics/${topicId}/votes/${characterId}/unhide-message`);
+}
+
+// --- público ---
+
+export interface CurrentVotingTopic {
+  id: string;
+  title: string;
+}
+
+export interface PublicVotingTopic {
+  id: string;
+  title: string;
+  description: string;
+  selectionType: VotingSelectionType;
+  status: VotingTopicStatus;
+  closeReason: string | null;
+  options: { id: string; label: string }[];
+}
+
+export interface VotingResultVoter {
+  characterId: string;
+  gameName: string;
+  level: number | null;
+  optionLabels: string[];
+  message: string | null;
+}
+
+export interface VotingResults {
+  topic: {
+    id: string;
+    title: string;
+    description: string;
+    selectionType: VotingSelectionType;
+    status: VotingTopicStatus;
+    closeReason: string | null;
+  };
+  tally: { optionId: string; label: string; count: number }[];
+  voters: VotingResultVoter[];
+  myVote: { optionIds: string[]; message: string | null } | null;
+}
+
+export async function fetchCurrentVotingTopic(): Promise<CurrentVotingTopic | null> {
+  const { data } = await apiClient.get<CurrentVotingTopic | null>('/public/voting-topics/current');
+  return data;
+}
+
+export async function fetchPublicVotingTopic(id: string): Promise<PublicVotingTopic> {
+  const { data } = await apiClient.get<PublicVotingTopic>(`/public/voting-topics/${id}`);
+  return data;
+}
+
+export async function submitVote(id: string, code: string, optionIds: string[], message?: string) {
+  const { data } = await apiClient.post(`/public/voting-topics/${id}/vote`, { code, optionIds, message });
+  return data;
+}
+
+export async function fetchVotingResults(id: string, code?: string): Promise<VotingResults> {
+  const { data } = await apiClient.get<VotingResults>(`/public/voting-topics/${id}/results`, {
+    params: code ? { code } : undefined,
+  });
+  return data;
+}

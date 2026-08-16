@@ -10,7 +10,8 @@
     "auctions": "Auctions",
     "balances": "Players",
     "feed": "Ledger",
-    "profile": "My Profile"
+    "profile": "My Profile",
+    "voting": "Voting"
   },
   "home": {
     "pinnedTitle": "Important Notice",
@@ -154,5 +155,26 @@
     "itemCancelled": "This item was closed early by the GM — reason: {{reason}}",
     "youWon": "You won this item!",
     "itemWonByOther": "This item has already been won by another player."
+  },
+  "voting": {
+    "notFound": "Voting topic not found.",
+    "closedLabel": "Voting closed",
+    "enterCodeTitle": "Enter your profile code to vote",
+    "enterCodeSubtitle": "The same code you use to access your /perfil.",
+    "codePlaceholder": "Your profile code",
+    "enterCodeSubmit": "Continue",
+    "invalidCode": "Invalid code.",
+    "resultsTitle": "Results",
+    "whoVotedTitle": "Who voted",
+    "noVotesYet": "No one has voted yet.",
+    "changeVote": "Change my vote",
+    "cancelChange": "Cancel",
+    "chooseOne": "Choose 1 option",
+    "chooseMany": "Choose 1 or more options",
+    "messageLabel": "Message (optional, visible to everyone)",
+    "messagePlaceholder": "Want to explain your vote? (optional)",
+    "messageHint": "Up to 280 characters. The GM can hide inappropriate messages.",
+    "submitVote": "Confirm vote",
+    "genericError": "Failed to record vote."
   }
 }

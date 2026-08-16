@@ -135,6 +135,7 @@ model Character {
   bids               Bid[]
   auctionWithdrawals AuctionItemWithdrawal[]
   levelChangeLog     LevelChangeRequest[]
+  votes              Vote[]
 
   @@index([status, membershipStatus])
 }
@@ -475,4 +476,81 @@ model Bid {
 
   @@index([auctionItemId])
   @@index([characterId])
+}
+
+// ---------------------------------------------------------------------
+// Votação (adicionado em 2026-08-14) — GM/Vice-GM criam e publicam
+// direto, sem aprovação dupla do Conselho (diferente do leilão). Só 1
+// tópico OPEN por vez (checado na aplicação, não é constraint de banco).
+// Resultado é escondido até a pessoa votar; depois de CLOSED, fica
+// público pra todo mundo, sem código nenhum.
+// ---------------------------------------------------------------------
+
+enum VotingSelectionType {
+  SINGLE
+  MULTIPLE
+}
+
+enum VotingTopicStatus {
+  DRAFT
+  OPEN
+  CLOSED
+}
+
+model VotingTopic {
+  id             String              @id @default(uuid())
+  title          String
+  description    String
+  selectionType  VotingSelectionType
+  status         VotingTopicStatus   @default(DRAFT)
+  scheduledEndAt DateTime?
+  publishedAt    DateTime?
+  closedAt       DateTime?
+  closeReason    String?
+  createdById    String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  options VotingOption[]
+  votes   Vote[]
+}
+
+model VotingOption {
+  id      String      @id @default(uuid())
+  topicId String
+  topic   VotingTopic @relation(fields: [topicId], references: [id])
+  label   String
+  order   Int         @default(0)
+
+  selections VoteSelection[]
+}
+
+// 1 por (tópico, personagem) — pode ser atualizado (troca de voto
+// permitida enquanto o tópico estiver OPEN), nunca duplicado.
+model Vote {
+  id            String      @id @default(uuid())
+  topicId       String
+  topic         VotingTopic @relation(fields: [topicId], references: [id])
+  characterId   String
+  character     Character   @relation(fields: [characterId], references: [id])
+  message       String?
+  messageHidden Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  selections VoteSelection[]
+
+  @@unique([topicId, characterId])
+}
+
+// Liga um voto a 1+ opções — permite o mesmo modelo cobrir seleção única
+// (1 linha) ou múltipla (várias), sem estrutura separada por tipo.
+model VoteSelection {
+  id       String       @id @default(uuid())
+  voteId   String
+  vote     Vote         @relation(fields: [voteId], references: [id])
+  optionId String
+  option   VotingOption @relation(fields: [optionId], references: [id])
+
+  @@unique([voteId, optionId])
 }

@@ -42,6 +42,10 @@ export function AdminLayout() {
             <NavLink to="/admin/protections">Proteções</NavLink>
           </div>
           <div className="admin-nav-group">
+            <span className="admin-nav-group-label">Votação</span>
+            <NavLink to="/admin/voting">Votação</NavLink>
+          </div>
+          <div className="admin-nav-group">
             <span className="admin-nav-group-label">Ledger</span>
             <NavLink to="/admin/ledger/transfer">Transferência</NavLink>
             {gmLevel && <NavLink to="/admin/ledger/manual-adjustment">Emissão manual</NavLink>}
