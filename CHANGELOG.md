@@ -1,5 +1,13 @@
 # Changelog — RFONext DKP
 
+## 2026-08-16 — Permite voltar a participar de um item depois de desistir
+
+Antes, desistir de um item de leilão era permanente: `placeBid` e `matchLeadingBid` ("Igualar Lance") rejeitavam qualquer tentativa de lance de quem já tinha desistido daquele item específico. Passa a ser permitido dar um novo lance a qualquer momento — a marca de desistência (`AuctionItemWithdrawal`) é removida no mesmo passo do novo lance, sem apagar o histórico de lances (`Bid` continua append-only) nem mexer na regra de resolução automática quando só resta 1 concorrente ativo (se esse já foi o caso, o item resolveu sozinho e não tem mais volta — comportamento inalterado).
+
+Como o lance antigo (de antes da desistência) continua contando pro cálculo de "seu lance anterior", o novo lance ainda precisa ser maior que ele, não só maior que o líder atual — mesma regra que já existia pra qualquer lance novo, sem exceção. Efeito colateral aceito: quem desistiu de uma aposta all-in (via "Igualar") só consegue voltar se conseguir mais saldo do que tinha antes.
+
+Backend: `placeBid`/`matchLeadingBid` (`auctions.service.ts`) não rejeitam mais quem já desistiu, e limpam a marca de desistência dentro da mesma transação do novo lance. 4 testes de integração novos cobrindo: re-lance normal limpa a marca; novo lance ainda precisa superar o próprio lance anterior; "Igualar" funciona pra quem desistiu; item já resolvido continua bloqueado pra sempre (63/63 testes no total). Frontend: `PlayerAuctionPage.tsx` volta a mostrar o formulário de lance e o botão "Igualar" mesmo depois de desistir (antes sumiam por completo); a mensagem "você desistiu" ganhou o complemento "mas ainda pode dar um novo lance" e para de aparecer junto com "item já vencido por outro jogador" quando o item já resolveu (bug pego durante a validação manual). i18n atualizado nos 3 idiomas. Validado manualmente no dev local com um leilão de teste temporário (3 personagens, cenários de re-lance simples, re-lance abaixo do próprio lance anterior — corretamente rejeitado — e "Igualar" após desistência num empate de 3), limpo depois.
+
 ## 2026-08-16 — Sistema de votação para tópicos
 
 Nova feature independente do leilão, sem alterar nenhuma mecânica existente (ver `PREMISSAS.md` seção 14 pra regras completas). GM ou Vice-GM cria e publica tópicos de votação (título, descrição, opções, seleção única ou múltipla) — Conselho não tem acesso a essa área. Só 1 tópico aberto por vez, travado por lock consultivo no publish (mesmo padrão de `AuctionsService`).

@@ -517,14 +517,14 @@ export class AuctionsService {
       }
       // Lance líder ignora quem já desistiu — não faz sentido exigir superar
       // o lance de um "fantasma" que não está mais concorrendo pelo item.
+      // Quem já desistiu PODE dar um novo lance (volta a participar) — a
+      // própria marca de desistência é removida logo abaixo, no mesmo passo
+      // do novo lance.
       const itemWithdrawals = await tx.auctionItemWithdrawal.findMany({
         where: { auctionItemId },
         select: { characterId: true },
       });
       const withdrawnIds = itemWithdrawals.map((w) => w.characterId);
-      if (withdrawnIds.includes(participant.characterId)) {
-        throw new BadRequestException('Você já desistiu deste item e não pode mais dar lances nele.');
-      }
 
       const leadingAgg = await tx.bid.aggregate({
         where: { auctionItemId, characterId: { notIn: withdrawnIds } },
@@ -551,6 +551,12 @@ export class AuctionsService {
       const available = walletBalance - hold;
       if (amount > available) {
         throw new BadRequestException(`Saldo disponível insuficiente. Você tem ${available} disponível agora.`);
+      }
+
+      if (withdrawnIds.includes(participant.characterId)) {
+        await tx.auctionItemWithdrawal.deleteMany({
+          where: { auctionItemId, characterId: participant.characterId },
+        });
       }
 
       return tx.bid.create({
@@ -602,14 +608,13 @@ export class AuctionsService {
       if (!freshItem || freshItem.resolutionStatus !== 'PENDING') {
         throw new BadRequestException('Este item já foi resolvido e não aceita mais lances.');
       }
+      // Quem já desistiu PODE igualar o lance líder (volta a participar) —
+      // mesma regra do placeBid, a marca de desistência some no mesmo passo.
       const itemWithdrawals = await tx.auctionItemWithdrawal.findMany({
         where: { auctionItemId },
         select: { characterId: true },
       });
       const withdrawnIds = itemWithdrawals.map((w) => w.characterId);
-      if (withdrawnIds.includes(participant.characterId)) {
-        throw new BadRequestException('Você já desistiu deste item e não pode mais dar lances nele.');
-      }
 
       const leadingAgg = await tx.bid.aggregate({
         where: { auctionItemId, characterId: { notIn: withdrawnIds } },
@@ -642,6 +647,12 @@ export class AuctionsService {
         throw new BadRequestException(
           `Você ainda tem saldo pra superar o lance atual (disponível: ${available}) — o botão Igualar só funciona quando for sua aposta máxima (all-in). Dê um lance maior no campo acima.`,
         );
+      }
+
+      if (withdrawnIds.includes(participant.characterId)) {
+        await tx.auctionItemWithdrawal.deleteMany({
+          where: { auctionItemId, characterId: participant.characterId },
+        });
       }
 
       return tx.bid.create({

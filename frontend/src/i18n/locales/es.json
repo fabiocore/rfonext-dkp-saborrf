@@ -151,7 +151,7 @@
     "backHome": "← Volver al sitio",
     "withdraw": "Desistir de este ítem",
     "withdrawConfirm": "¿Seguro que quieres desistir de este ítem? Tu oferta deja de contar y el valor reservado vuelve a tu billetera enseguida. No se puede deshacer.",
-    "youWithdrew": "Desististe de este ítem.",
+    "youWithdrew": "Desististe de este ítem — pero todavía podés hacer una nueva oferta.",
     "itemCancelled": "Este ítem fue cerrado antes de tiempo por el GM — motivo: {{reason}}",
     "youWon": "¡Ganaste este ítem!",
     "itemWonByOther": "Este ítem ya fue ganado por otro jugador."

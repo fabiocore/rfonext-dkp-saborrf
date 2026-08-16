@@ -68,7 +68,7 @@ function ItemCard({
   // está empatado com ele — o backend decide se aceita (só aceita all-in de
   // verdade, saldo disponível == lance líder) e devolve o motivo exato
   // quando rejeita, então não escondemos o botão por causa do saldo aqui.
-  const canMatch = item.eligible && !disabled && !resolved && !item.withdrawn && item.leadingAmount > 0 && item.ownAmount < item.leadingAmount;
+  const canMatch = item.eligible && !disabled && !resolved && item.leadingAmount > 0 && item.ownAmount < item.leadingAmount;
 
   return (
     <div className="auction-item-card">
@@ -90,7 +90,7 @@ function ItemCard({
           {item.won ? t('player.youWon') : t('player.itemWonByOther')}
         </p>
       )}
-      {item.withdrawn && <p className="subtitle">{t('player.youWithdrew')}</p>}
+      {item.withdrawn && !resolved && <p className="subtitle">{t('player.youWithdrew')}</p>}
 
       <p>
         {t('player.currentBid')}: <strong>{item.leadingAmount || '—'}</strong> · {t('player.yourBid')}:{' '}
@@ -114,7 +114,7 @@ function ItemCard({
         </p>
       )}
 
-      {item.eligible && !disabled && !resolved && !item.withdrawn && (
+      {item.eligible && !disabled && !resolved && (
         <form
           className="inline-form"
           onSubmit={(e) => {

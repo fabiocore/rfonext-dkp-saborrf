@@ -151,7 +151,7 @@
     "backHome": "← Back to site",
     "withdraw": "Withdraw from this item",
     "withdrawConfirm": "Are you sure you want to withdraw from this item? Your bid stops counting and the reserved amount returns to your wallet right away. This can't be undone.",
-    "youWithdrew": "You withdrew from this item.",
+    "youWithdrew": "You withdrew from this item — but you can still place a new bid.",
     "itemCancelled": "This item was closed early by the GM — reason: {{reason}}",
     "youWon": "You won this item!",
     "itemWonByOther": "This item has already been won by another player."

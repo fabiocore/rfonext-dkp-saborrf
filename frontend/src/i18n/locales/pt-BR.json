@@ -151,7 +151,7 @@
     "backHome": "← Voltar ao site",
     "withdraw": "Desistir deste item",
     "withdrawConfirm": "Tem certeza que quer desistir deste item? Seu lance para de valer e o valor reservado volta pra sua carteira na hora. Não dá pra voltar atrás.",
-    "youWithdrew": "Você desistiu deste item.",
+    "youWithdrew": "Você desistiu deste item — mas ainda pode dar um novo lance.",
     "itemCancelled": "Este item foi encerrado pelo GM antes da hora — motivo: {{reason}}",
     "youWon": "Você venceu este item!",
     "itemWonByOther": "Este item já foi vencido por outro jogador."
