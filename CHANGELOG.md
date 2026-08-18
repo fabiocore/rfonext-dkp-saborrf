@@ -1,5 +1,13 @@
 # Changelog — RFONext DKP
 
+## 2026-08-17 — Reabrir item que venceu sozinho antes da hora (incidente real)
+
+Incidente real num leilão em produção ("RAID HELL"): um item resolveu sozinho pela regra "só 1 concorrente ativo restante vence na hora" (desistências em cadeia), mas o GM não queria isso pra aquele item — queria manter aberto até o prazo real do leilão.
+
+Novo botão "Reabrir item" (GM/Vice-GM, motivo obrigatório) desfaz esse tipo de vitória automática prematura: reverte a queima (crédito de volta pro vencedor via `AUCTION_WIN_REVERSAL`, a queima original nunca é apagada — ledger append-only, mesmo padrão de "Apagar item") e volta o item pra "Em andamento". Só funciona enquanto o leilão em si ainda está aberto e não expirou de verdade — se o leilão já encerrou, não tem mais volta por aqui (o caminho pra isso continua sendo "Apagar item"/"Apagar leilão"). Combinado com o "voltar a participar depois de desistir" (entrada anterior), quem tinha desistido antes do fechamento prematuro já consegue dar lance de novo assim que o item reabre.
+
+Backend: `AuctionsService.reopenItem`, 5 testes de integração novos (68/68 no total) cobrindo a reversão de ledger, bloqueio pra item não-vencido, motivo obrigatório, bloqueio pra leilão já de fato encerrado, e item inexistente. Validado manualmente reproduzindo o incidente real (2 personagens, um desiste, o outro vence sozinho, reabre, o que desistiu dá lance de novo) no dev local antes do deploy.
+
 ## 2026-08-16 — Permite voltar a participar de um item depois de desistir
 
 Antes, desistir de um item de leilão era permanente: `placeBid` e `matchLeadingBid` ("Igualar Lance") rejeitavam qualquer tentativa de lance de quem já tinha desistido daquele item específico. Passa a ser permitido dar um novo lance a qualquer momento — a marca de desistência (`AuctionItemWithdrawal`) é removida no mesmo passo do novo lance, sem apagar o histórico de lances (`Bid` continua append-only) nem mexer na regra de resolução automática quando só resta 1 concorrente ativo (se esse já foi o caso, o item resolveu sozinho e não tem mais volta — comportamento inalterado).

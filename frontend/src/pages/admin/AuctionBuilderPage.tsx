@@ -17,6 +17,7 @@ import {
   forceDeleteAuctionItem,
   isGmLevel,
   removeAuctionItem,
+  reopenAuctionItem,
   setAuctionParticipants,
   setAuctionSchedule,
 } from '../../api/client';
@@ -228,6 +229,17 @@ export function AuctionBuilderPage() {
     onError: (err: any) => setForceDeleteError(err?.response?.data?.message ?? 'Falha ao apagar o item.'),
   });
 
+  const [reopenError, setReopenError] = useState<string | null>(null);
+
+  const reopenItemMutation = useMutation({
+    mutationFn: ({ itemId, reason }: { itemId: string; reason: string }) => reopenAuctionItem(id!, itemId, reason),
+    onSuccess: () => {
+      setReopenError(null);
+      queryClient.invalidateQueries({ queryKey: ['auction-staff', id] });
+    },
+    onError: (err: any) => setReopenError(err?.response?.data?.message ?? 'Falha ao reabrir o item.'),
+  });
+
   // Controle total do GM (PREMISSAS.md seção 7.2): apaga leilão/item em
   // qualquer status, mesmo aberto ou encerrado — diferente de "Apagar
   // rascunho"/"Remover" (só em rascunho, sem motivo). Se o item já tinha
@@ -255,6 +267,19 @@ export function AuctionBuilderPage() {
     if (!confirmed) return;
     setForceDeleteError(null);
     forceDeleteItemMutation.mutate({ itemId, reason: reason.trim() });
+  }
+
+  function handleReopenItem(itemId: string, itemName: string) {
+    const reason = prompt(
+      `Motivo pra reabrir "${itemName}" (desfaz a vitória automática e volta o item pra "em andamento") — obrigatório:`,
+    );
+    if (!reason?.trim()) return;
+    const confirmed = confirm(
+      `Isso reverte a vitória de "${itemName}": o valor volta pro vencedor automaticamente (a queima original continua no extrato), e o item volta a aceitar lances — inclusive de quem já tinha desistido. Confirma?`,
+    );
+    if (!confirmed) return;
+    setReopenError(null);
+    reopenItemMutation.mutate({ itemId, reason: reason.trim() });
   }
 
   function handleCancelItem(itemId: string, itemName: string) {
@@ -332,6 +357,7 @@ export function AuctionBuilderPage() {
         </button>
       )}
       {forceDeleteError && <p className="form-error">{forceDeleteError}</p>}
+      {reopenError && <p className="form-error">{reopenError}</p>}
 
       <h3>Itens</h3>
       {editable && <AddItemForm auctionId={auction.id} />}
@@ -384,6 +410,15 @@ export function AuctionBuilderPage() {
                 {!editable && auction.status === 'OPEN' && item.resolutionStatus === 'PENDING' && gmLevel && (
                   <button type="button" onClick={() => handleCancelItem(item.id, item.name)} disabled={cancelItemMutation.isPending}>
                     Encerrar item
+                  </button>
+                )}{' '}
+                {!editable && auction.status === 'OPEN' && item.resolutionStatus === 'WON' && gmLevel && (
+                  <button
+                    type="button"
+                    onClick={() => handleReopenItem(item.id, item.name)}
+                    disabled={reopenItemMutation.isPending}
+                  >
+                    Reabrir item
                   </button>
                 )}{' '}
                 {gmLevel && (

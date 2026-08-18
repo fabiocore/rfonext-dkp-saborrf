@@ -665,6 +665,14 @@ export async function cancelAuctionItem(auctionId: string, itemId: string, reaso
   return data;
 }
 
+// GM-only: desfaz uma vitória automática prematura (ex: só sobrou 1
+// concorrente ativo após desistências, com o leilão ainda bem aberto) —
+// reverte a queima e volta o item pra PENDING.
+export async function reopenAuctionItem(auctionId: string, itemId: string, reason: string): Promise<AuctionItem> {
+  const { data } = await apiClient.post<AuctionItem>(`/auctions/${auctionId}/items/${itemId}/reopen`, { reason });
+  return data;
+}
+
 export async function closeAuction(auctionId: string, reason: string): Promise<Auction> {
   const { data } = await apiClient.post<Auction>(`/auctions/${auctionId}/close`, { reason });
   return data;

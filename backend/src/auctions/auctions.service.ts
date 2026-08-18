@@ -215,6 +215,54 @@ export class AuctionsService {
   }
 
   /**
+   * GM-only: desfaz uma vitória automática prematura (ex: só sobrou 1
+   * concorrente ativo depois de desistências — seção 7.1 — mas o leilão
+   * ainda está bem longe do prazo real) e volta o item pra PENDING. A
+   * queima real já registrada nunca é apagada/editada (ledger append-only,
+   * mesma lógica de `forceDeleteItem`) — em vez disso cria uma reversão de
+   * crédito (`AUCTION_WIN_REVERSAL`) pro vencedor. Só funciona enquanto o
+   * leilão em si ainda está `OPEN` e não expirou de verdade — se o leilão
+   * já encerrou (natural ou manualmente), a resolução dos itens foi o
+   * fechamento real, não uma corrida de desistências, e não tem volta.
+   */
+  async reopenItem(auctionId: string, itemId: string, reason: string) {
+    if (!reason?.trim()) throw new BadRequestException('Motivo é obrigatório pra reabrir um item.');
+    const trimmedReason = reason.trim();
+
+    const auction = await this.prisma.auction.findUnique({ where: { id: auctionId } });
+    if (!auction) throw new NotFoundException('Leilão não encontrado.');
+    if (auction.status !== 'OPEN' || !auction.expiresAt || auction.expiresAt <= new Date()) {
+      throw new BadRequestException('Este leilão não está mais aberto — não é possível reabrir itens dele.');
+    }
+
+    const item = await this.prisma.auctionItem.findUnique({
+      where: { id: itemId },
+      include: { winningBid: true },
+    });
+    if (!item || item.auctionId !== auctionId) throw new NotFoundException('Item não encontrado neste leilão.');
+    if (item.resolutionStatus !== 'WON' || !item.winningBid) {
+      throw new BadRequestException('Este item não está vencido — só dá pra reabrir um item que já tinha vencedor.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.ledgerTransaction.create({
+        data: {
+          characterId: item.winningBid!.characterId,
+          amount: item.winningBid!.amount,
+          type: 'AUCTION_WIN_REVERSAL',
+          auctionItemId: item.id,
+          reasonText: `Item "${item.name}" (leilão "${auction.title}") reaberto pelo GM — motivo: ${trimmedReason}`,
+        },
+      });
+
+      return tx.auctionItem.update({
+        where: { id: itemId },
+        data: { resolutionStatus: 'PENDING', winningBidId: null, resolvedAt: null, diceRollDetail: null },
+      });
+    });
+  }
+
+  /**
    * Data/hora exata em que o leilão termina — definida pelo GM/conselho
    * antes de publicar, em vez de uma duração fixa de 24h contada a partir
    * da publicação.

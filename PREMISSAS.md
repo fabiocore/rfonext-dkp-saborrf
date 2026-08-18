@@ -128,6 +128,13 @@
 - Encerrar um **item específico** ("Encerrar item"): o item vira "Cancelado" com o motivo, sem vencedor, sem queima — quem tinha lance ali tem o valor liberado na hora (nunca houve débito real). Uso: quando o item em si não vai mais ser entregue por algum motivo.
 - Encerrar o **leilão inteiro** ("Encerrar leilão"): cada item ainda em andamento é **resolvido de verdade, igual ao fechamento natural** (corrigido em 2026-08-09 — antes cancelava todo item pendente sem olhar se já tinha lance, perdendo o vencedor de verdade). Item com lance ativo vira "Vencido" (queima o valor do maior lance, empate resolvido no dado); item sem nenhum lance vira "Não reclamado". Itens já resolvidos antes (vencidos, não reclamados, ou cancelados individualmente) não são tocados. A tela de Personagens/Leilão mostra o nome do vencedor + valor em cada item resolvido, pra facilitar a entrega.
 
+### 7.1.1 Reabrir item vencido automaticamente antes da hora (adicionado em 2026-08-17)
+
+- Incidente real: um item resolveu sozinho pela regra "só 1 concorrente ativo restante vence na hora" (seção 7.1) mas o GM não queria isso pra aquele item específico — queria manter aberto até o prazo real do leilão.
+- **GM ou Vice-GM** podem **reabrir** um item que já tinha vencedor, com **motivo obrigatório**: a queima real nunca é apagada/editada (ledger append-only) — em vez disso cria uma transação de reversão (`AUCTION_WIN_REVERSAL`) creditando o vencedor de volta, igual ao padrão já usado em "apagar item" (seção 7.3). O item volta pra `PENDING`, o lance vencedor continua contando normalmente (histórico nunca é apagado), e quem tinha desistido antes já pode voltar a dar lance (seção 7.1, "voltar a participar depois de desistir").
+- **Só funciona enquanto o leilão em si ainda está `OPEN` e não expirou de verdade** — se o leilão já foi encerrado (natural ou manualmente), a resolução dos itens foi o fechamento real, não uma corrida de desistências prematuras, e não tem mais volta (nesse caso o caminho é "apagar item" ou "apagar leilão", seção 7.3, que reverte E remove).
+- Botão "Reabrir item" só aparece pra item com status "Vencido" enquanto o leilão está aberto, ao lado de "Apagar item (forçado)" na tela de administração do leilão.
+
 ### 7.3 Controle total do GM: apagar leilão/item em qualquer status (adicionado em 2026-08-09)
 
 - **GM ou Vice-GM** podem apagar um **item específico** ou o **leilão inteiro**, em **qualquer status** — rascunho, aberto ou encerrado — sempre com **motivo obrigatório**. Diferente do "Apagar rascunho"/"Remover" comuns (que só funcionam em rascunho/aguardando aprovação, sem motivo, porque nunca houve consequência financeira), esse é o botão de emergência pra quando algo precisa sumir mesmo já tendo ido ao ar.

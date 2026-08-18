@@ -443,3 +443,190 @@ describe('AuctionsService — lance apos desistencia (integracao)', () => {
     await expect(service.placeBid(charBCode, itemSoloWinId, 999)).rejects.toThrow(/já foi resolvido/i);
   });
 });
+
+/**
+ * Incidente real (2026-08-17): um item de leilão ainda aberto (leilão OPEN,
+ * bem antes do prazo real) resolveu sozinho porque só sobrou 1 concorrente
+ * ativo depois de desistências (regra documentada na seção 7.1) — mas o GM
+ * não queria isso pra esse item, queria manter aberto até o prazo real.
+ * `reopenItem` desfaz uma vitória automática desse tipo: reverte a queima
+ * (crédito de volta, nunca apaga a transação original — ledger append-only)
+ * e volta o item pra PENDING, pra quem desistiu poder voltar a dar lance
+ * (feature já existente) e o leilão seguir seu curso normal até o prazo real.
+ */
+describe('AuctionsService.reopenItem (integração)', () => {
+  let service: AuctionsService;
+  let prisma: PrismaService;
+
+  let openAuctionId: string;
+  let closedAuctionId: string;
+  let itemWonId: string;
+  let itemPendingId: string;
+  let itemWonInClosedAuctionId: string;
+
+  let charWinnerId: string;
+  let charWinnerCode: string;
+  let charOtherId: string;
+  let charOtherCode: string;
+
+  const characterNames = ['IntegTestReopen_Winner', 'IntegTestReopen_Other'];
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [AuctionsService, PrismaService],
+    }).compile();
+    service = moduleRef.get(AuctionsService);
+    prisma = moduleRef.get(PrismaService);
+    await prisma.$connect();
+
+    await prisma.guildSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1, guildName: 'IntegTest Guild' },
+    });
+
+    const [openAuction, closedAuction] = await Promise.all([
+      prisma.auction.create({
+        data: {
+          title: 'IntegTestReopen_LeilaoAberto',
+          status: 'OPEN',
+          publishedAt: new Date(),
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          createdById: 'integtest',
+        },
+      }),
+      prisma.auction.create({
+        data: {
+          title: 'IntegTestReopen_LeilaoEncerrado',
+          status: 'CLOSED',
+          publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          expiresAt: new Date(Date.now() - 60 * 60 * 1000),
+          createdById: 'integtest',
+        },
+      }),
+    ]);
+    openAuctionId = openAuction.id;
+    closedAuctionId = closedAuction.id;
+
+    const [itemWon, itemPending, itemWonInClosed] = await Promise.all([
+      prisma.auctionItem.create({ data: { auctionId: openAuctionId, name: 'IntegTestReopen_ItemVencido' } }),
+      prisma.auctionItem.create({ data: { auctionId: openAuctionId, name: 'IntegTestReopen_ItemPendente' } }),
+      prisma.auctionItem.create({ data: { auctionId: closedAuctionId, name: 'IntegTestReopen_ItemLeilaoEncerrado' } }),
+    ]);
+    itemWonId = itemWon.id;
+    itemPendingId = itemPending.id;
+    itemWonInClosedAuctionId = itemWonInClosed.id;
+
+    const [winner, other] = await Promise.all(
+      characterNames.map((gameName) =>
+        prisma.character.create({
+          data: { gameName, status: 'PRINCIPAL', membershipStatus: 'ACTIVE', level: 60, auctionAccessCode: gameName },
+        }),
+      ),
+    );
+    charWinnerId = winner.id;
+    charWinnerCode = winner.auctionAccessCode!;
+    charOtherId = other.id;
+    charOtherCode = other.auctionAccessCode!;
+
+    await prisma.auctionParticipant.createMany({
+      data: [charWinnerId, charOtherId].flatMap((characterId) => [
+        { auctionId: openAuctionId, characterId },
+        { auctionId: closedAuctionId, characterId },
+      ]),
+    });
+
+    // Dá saldo pro vencedor pra queima inicial (100) não deixar saldo negativo,
+    // e pro outro personagem poder dar um lance novo depois de reabrir o item.
+    await prisma.ledgerTransaction.createMany({
+      data: [
+        { characterId: charWinnerId, amount: 200, type: 'GM_MANUAL_ADJUSTMENT' },
+        { characterId: charOtherId, amount: 300, type: 'GM_MANUAL_ADJUSTMENT' },
+      ],
+    });
+
+    const winningBid1 = await prisma.bid.create({
+      data: { auctionItemId: itemWonId, characterId: charWinnerId, amount: 100 },
+    });
+    await prisma.ledgerTransaction.create({
+      data: { characterId: charWinnerId, amount: -100, type: 'AUCTION_WIN_BURN', auctionItemId: itemWonId },
+    });
+    await prisma.auctionItem.update({
+      where: { id: itemWonId },
+      data: { resolutionStatus: 'WON', winningBidId: winningBid1.id, resolvedAt: new Date() },
+    });
+
+    const winningBid2 = await prisma.bid.create({
+      data: { auctionItemId: itemWonInClosedAuctionId, characterId: charWinnerId, amount: 50 },
+    });
+    await prisma.ledgerTransaction.create({
+      data: { characterId: charWinnerId, amount: -50, type: 'AUCTION_WIN_BURN', auctionItemId: itemWonInClosedAuctionId },
+    });
+    await prisma.auctionItem.update({
+      where: { id: itemWonInClosedAuctionId },
+      data: { resolutionStatus: 'WON', winningBidId: winningBid2.id, resolvedAt: new Date() },
+    });
+  });
+
+  afterAll(async () => {
+    const characterIds = [charWinnerId, charOtherId];
+    const itemIds = [itemWonId, itemPendingId, itemWonInClosedAuctionId];
+    await prisma.ledgerTransaction.deleteMany({ where: { characterId: { in: characterIds } } });
+    await prisma.auctionItem.updateMany({ where: { id: { in: itemIds } }, data: { winningBidId: null } });
+    await prisma.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+    await prisma.auctionParticipant.deleteMany({ where: { auctionId: { in: [openAuctionId, closedAuctionId] } } });
+    await prisma.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
+    await prisma.auction.deleteMany({ where: { id: { in: [openAuctionId, closedAuctionId] } } });
+    await prisma.character.deleteMany({ where: { id: { in: characterIds } } });
+    await prisma.$disconnect();
+  });
+
+  it('reabre item vencido: reverte a queima e volta pra PENDING', async () => {
+    const balanceBefore = await prisma.ledgerTransaction.aggregate({
+      where: { characterId: charWinnerId },
+      _sum: { amount: true },
+    });
+
+    const item = await service.reopenItem(openAuctionId, itemWonId, 'GM não queria fechar antes da hora');
+    expect(item.resolutionStatus).toBe('PENDING');
+    expect(item.winningBidId).toBeNull();
+    expect(item.resolvedAt).toBeNull();
+
+    const reversal = await prisma.ledgerTransaction.findFirst({
+      where: { characterId: charWinnerId, type: 'AUCTION_WIN_REVERSAL' },
+    });
+    expect(reversal?.amount).toBe(100);
+
+    const balanceAfter = await prisma.ledgerTransaction.aggregate({
+      where: { characterId: charWinnerId },
+      _sum: { amount: true },
+    });
+    expect(balanceAfter._sum.amount).toBe((balanceBefore._sum.amount ?? 0) + 100);
+
+    // O item reaberto volta a aceitar lance normalmente.
+    const newBid = await service.placeBid(charOtherCode, itemWonId, 150);
+    expect(newBid.amount).toBe(150);
+  });
+
+  it('rejeita reabrir item que não está vencido', async () => {
+    await expect(service.reopenItem(openAuctionId, itemPendingId, 'motivo qualquer')).rejects.toThrow(
+      /não está vencido/i,
+    );
+  });
+
+  it('rejeita reabrir sem motivo', async () => {
+    await expect(service.reopenItem(openAuctionId, itemWonId, '')).rejects.toThrow(/motivo/i);
+  });
+
+  it('rejeita reabrir item de um leilão que já não está mais aberto (encerramento real)', async () => {
+    await expect(
+      service.reopenItem(closedAuctionId, itemWonInClosedAuctionId, 'motivo qualquer'),
+    ).rejects.toThrow(/não está mais aberto/i);
+  });
+
+  it('rejeita item inexistente ou de outro leilão', async () => {
+    await expect(service.reopenItem(openAuctionId, 'id-que-nao-existe', 'motivo')).rejects.toThrow(
+      /não encontrado/i,
+    );
+  });
+});

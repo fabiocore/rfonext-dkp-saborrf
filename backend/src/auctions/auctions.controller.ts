@@ -88,4 +88,13 @@ export class AuctionsController {
   forceDeleteItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body('reason') reason: string) {
     return this.auctionsService.forceDeleteItem(id, itemId, reason);
   }
+
+  // GM-only: desfaz uma vitória automática prematura (só sobrou 1
+  // concorrente ativo após desistências, com o leilão ainda bem aberto) —
+  // reverte a queima e volta o item pra PENDING (ver AuctionsService.reopenItem).
+  @Roles('GM', 'VICE_GM')
+  @Post(':id/items/:itemId/reopen')
+  reopenItem(@Param('id') id: string, @Param('itemId') itemId: string, @Body('reason') reason: string) {
+    return this.auctionsService.reopenItem(id, itemId, reason);
+  }
 }
