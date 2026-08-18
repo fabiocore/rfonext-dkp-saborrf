@@ -64,11 +64,18 @@ function ItemCard({
 
   const resolved = item.resolutionStatus !== 'PENDING';
   const canWithdraw = item.ownAmount > 0 && !item.withdrawn && !resolved && !disabled;
+  // `ownAmount` é o lance HISTÓRICO (inclui um lance de antes de desistir,
+  // pra continuar mostrando "Seu lance: X" mesmo já tendo desistido) — não
+  // reflete standing atual. Pra decidir se mostra "Igualar", ignora esse
+  // valor de quem já desistiu (mesma regra do backend): sem isso, quem
+  // desistiu de um empate all-in nunca via o botão pra voltar, porque o
+  // próprio lance antigo já "empatava" o líder atual.
+  const effectiveOwnAmount = item.withdrawn ? 0 : item.ownAmount;
   // Sempre visível quando há um lance líder pra igualar e o jogador ainda não
   // está empatado com ele — o backend decide se aceita (só aceita all-in de
   // verdade, saldo disponível == lance líder) e devolve o motivo exato
   // quando rejeita, então não escondemos o botão por causa do saldo aqui.
-  const canMatch = item.eligible && !disabled && !resolved && item.leadingAmount > 0 && item.ownAmount < item.leadingAmount;
+  const canMatch = item.eligible && !disabled && !resolved && item.leadingAmount > 0 && effectiveOwnAmount < item.leadingAmount;
 
   return (
     <div className="auction-item-card">

@@ -630,3 +630,111 @@ describe('AuctionsService.reopenItem (integração)', () => {
     );
   });
 });
+
+/**
+ * Bug real reportado pelo GM (2026-08-17): "Igualar Lance" pra quem já
+ * desistiu usava o lance HISTÓRICO (de antes da desistência) pra decidir se
+ * a pessoa "já está liderando" — mas um lance de antes da desistência não é
+ * standing atual nenhum. Resultado: alguém que desistiu de um empate all-in
+ * (ex: 3 pessoas empatadas em 100, uma desiste) não conseguia voltar via
+ * Igualar, porque o próprio lance antigo (100) já "empatava" o líder atual
+ * (também 100) — a mensagem "você já está empatado ou liderando" aparecia
+ * pra quem, na real, tinha ZERO lance ativo no item.
+ */
+describe('AuctionsService.matchLeadingBid — reentrada após empate (integração)', () => {
+  let service: AuctionsService;
+  let prisma: PrismaService;
+
+  let auctionId: string;
+  let itemId: string;
+  let charAId: string;
+  let charBId: string, charBCode: string;
+  let charCId: string;
+
+  const characterNames = ['IntegTestTieRejoin_A', 'IntegTestTieRejoin_B', 'IntegTestTieRejoin_C'];
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      providers: [AuctionsService, PrismaService],
+    }).compile();
+    service = moduleRef.get(AuctionsService);
+    prisma = moduleRef.get(PrismaService);
+    await prisma.$connect();
+
+    await prisma.guildSettings.upsert({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1, guildName: 'IntegTest Guild' },
+    });
+
+    const auction = await prisma.auction.create({
+      data: {
+        title: 'IntegTestTieRejoin_Leilao',
+        status: 'OPEN',
+        publishedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        createdById: 'integtest',
+      },
+    });
+    auctionId = auction.id;
+
+    const item = await prisma.auctionItem.create({ data: { auctionId, name: 'IntegTestTieRejoin_Item' } });
+    itemId = item.id;
+
+    const [charA, charB, charC] = await Promise.all(
+      characterNames.map((gameName) =>
+        prisma.character.create({
+          data: { gameName, status: 'PRINCIPAL', membershipStatus: 'ACTIVE', level: 60, auctionAccessCode: gameName },
+        }),
+      ),
+    );
+    charAId = charA.id;
+    charBId = charB.id;
+    charBCode = charB.auctionAccessCode!;
+    charCId = charC.id;
+
+    await prisma.auctionParticipant.createMany({
+      data: [charAId, charBId, charCId].map((characterId) => ({ auctionId, characterId })),
+    });
+
+    // Empate de 3 all-in em 100 — B vai desistir e depois tentar voltar via Igualar.
+    await prisma.bid.create({ data: { auctionItemId: itemId, characterId: charAId, amount: 100 } });
+    await prisma.bid.create({ data: { auctionItemId: itemId, characterId: charBId, amount: 100 } });
+    await prisma.bid.create({ data: { auctionItemId: itemId, characterId: charCId, amount: 100 } });
+
+    // B só tem exatamente 100 disponível — precisa ser all-in de verdade pra Igualar aceitar.
+    await prisma.ledgerTransaction.create({
+      data: { characterId: charBId, amount: 100, type: 'GM_MANUAL_ADJUSTMENT' },
+    });
+  });
+
+  afterAll(async () => {
+    const characterIds = [charAId, charBId, charCId];
+    await prisma.ledgerTransaction.deleteMany({ where: { characterId: { in: characterIds } } });
+    await prisma.auctionItemWithdrawal.deleteMany({ where: { auctionItemId: itemId } });
+    await prisma.bid.deleteMany({ where: { auctionItemId: itemId } });
+    await prisma.auctionParticipant.deleteMany({ where: { auctionId } });
+    await prisma.auctionItem.delete({ where: { id: itemId } });
+    await prisma.auction.delete({ where: { id: auctionId } });
+    await prisma.character.deleteMany({ where: { id: { in: characterIds } } });
+    await prisma.$disconnect();
+  });
+
+  it('permite igualar de novo mesmo quando o próprio lance antigo já empatava o líder atual', async () => {
+    await service.withdrawFromItem(charBCode, itemId);
+
+    // Confirma que o item continua PENDING (2 concorrentes ativos sobraram) —
+    // pré-condição do teste, não é o que está sendo verificado.
+    const item = await prisma.auctionItem.findUnique({ where: { id: itemId } });
+    expect(item?.resolutionStatus).toBe('PENDING');
+
+    const bid = await service.matchLeadingBid(charBCode, itemId);
+    expect(bid.amount).toBe(100);
+    expect(bid.characterId).toBe(charBId);
+
+    const withdrawal = await prisma.auctionItemWithdrawal.findFirst({
+      where: { auctionItemId: itemId, characterId: charBId },
+    });
+    expect(withdrawal).toBeNull();
+  });
+});

@@ -678,7 +678,14 @@ export class AuctionsService {
         _max: { amount: true },
       });
       const ownAmount = ownAgg._max.amount ?? 0;
-      if (ownAmount >= leadingAmount) {
+      // Um lance de ANTES da desistência não é standing atual nenhum — só
+      // barra o "já está empatado/liderando" pra quem está genuinamente
+      // ativo no item agora. Sem isso, quem desistiu de um empate all-in
+      // (ex: 3 pessoas em 100, uma desiste) nunca conseguia voltar via
+      // Igualar: o próprio lance antigo já "empatava" o líder atual, mesmo
+      // com zero lance ativo de verdade (bug real reportado pelo GM em
+      // 2026-08-17).
+      if (!withdrawnIds.includes(participant.characterId) && ownAmount >= leadingAmount) {
         throw new BadRequestException('Você já está empatado ou liderando este item.');
       }
 

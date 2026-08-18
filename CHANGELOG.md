@@ -1,5 +1,11 @@
 # Changelog — RFONext DKP
 
+## 2026-08-17 — Fix: Igualar Lance não deixava quem desistiu de um empate voltar
+
+Reportado pelo GM logo depois do fix anterior ("voltar a participar depois de desistir"): quem tinha desistido de um empate all-in não conseguia voltar via "Igualar Lance". Causa: o cálculo de "você já está empatado ou liderando" usava o lance **histórico** da pessoa (de antes de ter desistido) — se esse lance antigo já era igual ao líder atual (caso clássico de empate all-in), o sistema recusava com "você já está empatado ou liderando", mesmo a pessoa estando com zero lance ativo de verdade.
+
+Corrigido pra ignorar o lance histórico de quem está atualmente desistido nessa comparação específica — tanto no backend (`matchLeadingBid`) quanto na condição que decide se o botão "Igualar" aparece no front (`PlayerAuctionPage.tsx`, que usava o mesmo valor histórico pra esconder o botão). Nenhuma outra regra mudou: o saldo disponível ainda precisa bater exatamente com o líder atual, igual a qualquer "Igualar". 1 teste de integração novo reproduzindo o bug exato (3 personagens empatados all-in em 100, um desiste, tenta igualar de novo — 69/69 no total). Validado manualmente reproduzindo o mesmo cenário no browser antes e depois do fix.
+
 ## 2026-08-17 — Reabrir item que venceu sozinho antes da hora (incidente real)
 
 Incidente real num leilão em produção ("RAID HELL"): um item resolveu sozinho pela regra "só 1 concorrente ativo restante vence na hora" (desistências em cadeia), mas o GM não queria isso pra aquele item — queria manter aberto até o prazo real do leilão.
